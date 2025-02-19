@@ -3,17 +3,17 @@ from scipy.sparse.linalg import cg  # Conjugate Gradient solver
 from scipy.linalg import norm
 
 
-def admm_solver(H, g, A_ineq, b_ineq, A_eq, b_eq, x0=None, max_iter=1000):
+def admm_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     print("========================================")
     print("----------------- ADMM -----------------")
     # Get the length from imput
     n = len(g)  # number of variables
-    l = len(b_ineq)  # number of inequality constraints
-    m = len(b_eq)  # number of equality constraints
-    num = m+l  # total number of constraints
+    m1 = len(b_eq)  # number of inequality constraints
+    m2 = len(b_ineq)  # number of equality constraints
+    m = m1+m2  # total number of constraints
 
     # Hyper parameters:
-    u0 = np.ones(num)  # relaxation vector, positive  
+    u0 = np.ones(m)  # relaxation vector, positive  
     mu = 10  # penalty parameter, > 0 
     sigma = 1e-7  # termination tolerance 
     sigma_prime = 1e-7  # termination tolerance 
@@ -25,11 +25,10 @@ def admm_solver(H, g, A_ineq, b_ineq, A_eq, b_eq, x0=None, max_iter=1000):
     # Initialization
     x = x0
     u = u0
-    A = np.vstack([A_ineq, A_eq])
-    b = np.hstack([b_ineq, b_eq])
+    A = np.vstack([A_eq, A_ineq])
+    b = np.hstack([b_eq, b_ineq])
     k = 0
     p = np.dot(A, x) + b
-    m, _ = A.shape
 
     for k in range(max_iter):
         # Step 1: Solve the augmented Lagrangian subproblem for x^(k+1) and p^(k+1)
@@ -46,7 +45,7 @@ def admm_solver(H, g, A_ineq, b_ineq, A_eq, b_eq, x0=None, max_iter=1000):
         p_new = (1 / (2 + mu)) * (u + mu * tmp)
         
         # Apply the constraints to p
-        for i in range(l):
+        for i in range(m1, m):
             p1 = max(0, (1 / (2 + mu)) * (u[i] + mu * tmp[i]))
             f1 = max(p1, 0) ** 2 - u[i] * p1 + mu / 2 * (tmp[i] ** 2 + p1 ** 2 - 2 * tmp[i] * p1)
             p2 = min(0, (1 / mu) * (u[i] + mu * tmp[i]))

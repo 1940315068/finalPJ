@@ -13,8 +13,8 @@ b_eq = np.array([0])
 H = np.array([[1,-1],[-1,1]])
 g = np.array([0,0])
 
-x_irwa, k = irwa_solver(H,g,A_ineq,b_ineq,A_eq,b_eq)
-x_admm, k_admm = admm_solver(H,g,A_ineq,b_ineq,A_eq,b_eq)
+x_irwa, k = irwa_solver(H,g,A_eq,b_eq,A_ineq,b_ineq)
+x_admm, k_admm = admm_solver(H,g,A_eq,b_eq,A_ineq,b_ineq)
 
 print(x_irwa)
 print(x_admm)

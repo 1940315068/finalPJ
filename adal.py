@@ -3,9 +3,9 @@ from scipy.sparse.linalg import cg  # Conjugate Gradient solver
 from scipy.linalg import norm
 
 
-def admm_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
+def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     print("========================================")
-    print("----------------- ADMM -----------------")
+    print("----------------- ADAL -----------------")
     # Get the length from imput
     n = len(g)  # number of variables
     m1 = len(b_eq)  # number of inequality constraints
@@ -13,8 +13,8 @@ def admm_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     m = m1+m2  # total number of constraints
 
     # Hyper parameters:
-    u0 = np.ones(m)  # relaxation vector, positive  
-    mu = 10  # penalty parameter, > 0 
+    u0 = np.zeros(m)  # relaxation vector, non-negative  
+    mu = 0.01  # penalty parameter, > 0 
     sigma = 1e-7  # termination tolerance 
     sigma_prime = 1e-7  # termination tolerance 
 
@@ -28,48 +28,47 @@ def admm_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     A = np.vstack([A_eq, A_ineq])
     b = np.hstack([b_eq, b_ineq])
     k = 0
-    p = np.dot(A, x) + b
+    # p = np.dot(A, x) + b
 
     for k in range(max_iter):
         # Step 1: Solve the augmented Lagrangian subproblem for x^(k+1) and p^(k+1)
         
-        # Use conjugate gradient to solve the linear system
+        # Solve for p^(k+1)
+        p_next = np.zeros(m)
+        s = np.dot(A, x) + b + 1/mu*u
+        # Equality constraints
+        for i in range(m1):
+            p_next[i] = np.sign(s[i]) * max(np.abs(s[i]) - 1/mu, 0)
+        # Inequality constraints
+        for i in range(m1, m):
+            p_next[i] = max(s[i] - 1/mu, 0) - max(-s[i], 0)
+        
+        # Solve for x^(k+1)
         coeff_matrix = H + mu * (np.dot(A.T, A))
-        rhs = - (g + np.dot(A.T, u) + mu * np.dot(A.T, b - p))
-        x_new, info = cg(coeff_matrix, rhs, maxiter=100, x0=x)  # Conjugate Gradient
+        rhs = - (g + np.dot(A.T, u) + mu * np.dot(A.T, b - p_next))
+        x_next, info = cg(coeff_matrix, rhs, maxiter=100, x0=x)  # Conjugate Gradient
         if info != 0:
             raise RuntimeError("CG not converge!")
-
-        # Then, solve for p^(k+1)
-        tmp = np.dot(A, x_new) + b
-        p_new = (1 / (2 + mu)) * (u + mu * tmp)
-        
-        # Apply the constraints to p
-        for i in range(m1, m):
-            p1 = max(0, (1 / (2 + mu)) * (u[i] + mu * tmp[i]))
-            f1 = max(p1, 0) ** 2 - u[i] * p1 + mu / 2 * (tmp[i] ** 2 + p1 ** 2 - 2 * tmp[i] * p1)
-            p2 = min(0, (1 / mu) * (u[i] + mu * tmp[i]))
-            f2 = max(p2, 0) ** 2 - u[i] * p2 + mu / 2 * (tmp[i] ** 2 + p2 ** 2 - 2 * tmp[i] * p2)
-            if f1 > f2:
-                p_new[i] = p2
-            else:
-                p_new[i] = p1
         
         # Step 2: Set the new multiplier u^(k+1)
-        residual = np.dot(A, x_new) + b - p_new
-        u_new = u + mu * residual
+        residual = np.dot(A, x_next) + b - p_next
+        u_next = u + mu * residual
 
         # Step 3: Check the stopping criterion
-        if norm(x_new - x) <= sigma and np.max(np.abs(residual)) <= sigma_prime:
+        norm_dx = norm(x_next - x)
+        norm_residual = np.max(np.abs(residual))
+        if norm_dx <= sigma and norm_residual <= sigma_prime:
             print(f"Iteration ends at {k} times.")
             val = quadratic_form(H,g,x)
             print(f"Function value = {val}")
+            print(f"Current norm* of residual Ax + b - p = {norm_residual}")
+            print(f"Current norm of dx: {norm_dx}")
             print("========================================")
             return x, k
 
-        x = x_new
-        p = p_new
-        u = u_new
+        x = x_next
+        # p = p_next
+        u = u_next
 
         # Output the function value every 100 iterations
         if k % 100 == 0:
@@ -79,7 +78,8 @@ def admm_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
             print(f"Iteration {k}")
             print(f"Function value = {func_value}")
             # print(f"Function value with penalty = {func_value_penalty}")
-            print(f"Current residual Ax + b - p = {norm(residual)}")
+            print(f"Current norm* of residual Ax + b - p = {norm_residual}")
+            print(f"Current norm of dx: {norm_dx}")
             print()
 
     print(f"No converge! Iteration ends at {k} times. ")

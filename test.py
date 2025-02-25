@@ -17,8 +17,9 @@ A_ineq = np.random.rand(m2, n)
 b_ineq = np.random.rand(m2)
 
 # define the phi(x) with H and g
-P = np.random.rand(n, n)
-H = np.dot(P.T, P)/2
+k = 5
+P = np.random.rand(n, 5)
+H = np.dot(P, P.T)/2 + 0.1 * np.eye(n)
 g = np.random.rand(n)
 
 

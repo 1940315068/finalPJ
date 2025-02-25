@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.sparse.linalg import cg  # Conjugate Gradient solver
-from scipy.linalg import norm
+from functions import quadratic_form
 
 
 def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
@@ -46,7 +46,7 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         # Solve for x^(k+1)
         coeff_matrix = H + mu * (np.dot(A.T, A))
         rhs = - (g + np.dot(A.T, u) + mu * np.dot(A.T, b - p_next))
-        x_next, info = cg(coeff_matrix, rhs, maxiter=100, x0=x)  # Conjugate Gradient
+        x_next, info = cg(coeff_matrix, rhs, maxiter=n*2, x0=x)  # Conjugate Gradient
         if info != 0:
             raise RuntimeError("CG not converge!")
         
@@ -55,9 +55,9 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         u_next = u + mu * residual
 
         # Step 3: Check the stopping criterion
-        norm_dx = norm(x_next - x)
+        norm_dx = np.linalg.norm(x_next - x)
         norm_residual = np.max(np.abs(residual))
-        if norm_dx <= sigma and norm_residual <= sigma_prime:
+        if norm_dx <= sigma or norm_residual <= sigma_prime:  # MAY BE WRONG HERE (?)
             print(f"Iteration ends at {k} times.")
             val = quadratic_form(H,g,x)
             print(f"Function value = {val}")
@@ -86,10 +86,4 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     print("========================================")
     return x, k
 
-
-# Compute the quadratic form: g^T x + 1/2 x^T H x
-def quadratic_form(H, g, x) -> float:
-    gTx = np.dot(g.T, x)
-    xTHx = np.dot(x.T, np.dot(H, x))
-    return gTx + 0.5 * xTHx
 

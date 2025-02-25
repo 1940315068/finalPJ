@@ -1,20 +1,32 @@
 import numpy as np
 from adal import adal_solver
 from irwa import irwa_solver
-
-A_ineq = np.array([[-1,0],
-                   [0,-1]])
-b_ineq = np.array([1,4])
-
-A_eq = np.array([[0,0]])
-b_eq = np.array([0])
+from functions import exact_penalty_func
 
 
-H = np.array([[1,-1],[-1,1]])
-g = np.array([0,0])
+n = 100  # number of variables
+m1 = 0  # number of equality constraints
+m2 = 20  # number of inequality constraints
 
-x_irwa, k = irwa_solver(H,g,A_eq,b_eq,A_ineq,b_ineq)
-x_adal, k_adal = adal_solver(H,g,A_eq,b_eq,A_ineq,b_ineq)
+# equality constraints 
+A_eq = np.zeros((m1,n))  # all zeros, no constraint
+b_eq = np.zeros(m1)
 
-print(x_irwa)
-print(x_adal)
+# inequality constraints
+A_ineq = np.random.rand(m2, n)
+b_ineq = np.random.rand(m2)
+
+# define the phi(x) with H and g
+P = np.random.rand(n, n)
+H = np.dot(P.T, P)/2
+g = np.random.rand(n)
+
+
+x_irwa, k_irwa = irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
+x_adal, k_adal = adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
+
+val_irwa = exact_penalty_func(H, g, x_irwa, A_eq, b_eq, A_ineq, b_ineq)
+val_adal = exact_penalty_func(H, g, x_adal, A_eq, b_eq, A_ineq, b_ineq)
+
+print(f"IRWA function value with penalty: {val_irwa}.")
+print(f"ADAL function value with penalty: {val_adal}.")

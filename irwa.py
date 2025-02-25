@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.sparse.linalg import cg
-
+from functions import quadratic_form
 
 def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
 
@@ -40,7 +40,7 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         # Use conjugate gradient to solve the linear system
         coeff_matrix = H + A.T @ W @ A
         rhs = - (g + A.T @ W @ v)
-        x_next, info = cg(coeff_matrix, rhs, maxiter=100, x0=x)
+        x_next, info = cg(coeff_matrix, rhs, maxiter=n*2, x0=x)
         if info != 0:
             raise RuntimeError("CG not converge!")
         
@@ -80,12 +80,6 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     print(f"No converge! Iteration ends at {k} times. ")
     print("========================================")
     return x, k
-
-# Compute the quadratic form: g^T x + 1/2 x^T H x
-def quadratic_form(H, g, x) -> float:
-    gTx = np.dot(g.T, x)
-    xTHx = np.dot(x.T, np.dot(H, x))
-    return gTx + 0.5 * xTHx
 
 
 def compute_W(x, epsilon, A, b, m1:int, m2:int):

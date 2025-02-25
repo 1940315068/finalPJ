@@ -89,7 +89,7 @@ def quadratic_form(H, g, x) -> float:
 
 
 def compute_W(x, epsilon, A, b, m1:int, m2:int):
-    m= len(b)  # total number of constraints
+    m = len(b)  # total number of constraints
     assert m == m1 + m2, f"Error: m (total constraints) should be equal to m1 + m2. Got m={m}, m1={m1}, m2={m2}"
     diagonal_elements = np.zeros(m)
     # Inequality constraints
@@ -105,7 +105,7 @@ def compute_W(x, epsilon, A, b, m1:int, m2:int):
 
 def compute_v(x_tilde, A, b, m1:int, m2:int):
     m = len(b)  # total number of constraints
-    assert m == m1 + m2, f"Error: m (total constraints) should be equal to l + m. Got m={m}, m1={m1}, m2={m2}"
+    assert m == m1 + m2, f"Error: m (total constraints) should be equal to m1 + m2. Got m={m}, m1={m1}, m2={m2}"
     v = np.zeros(m)
     # Inequality constraints
     for i in range(m1):

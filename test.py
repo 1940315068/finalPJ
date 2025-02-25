@@ -5,12 +5,12 @@ from functions import exact_penalty_func
 
 
 n = 100  # number of variables
-m1 = 0  # number of equality constraints
+m1 = 20  # number of equality constraints
 m2 = 20  # number of inequality constraints
 
 # equality constraints 
-A_eq = np.zeros((m1,n))  # all zeros, no constraint
-b_eq = np.zeros(m1)
+A_eq = np.random.rand(m1, n)
+b_eq = np.zeros(m2)
 
 # inequality constraints
 A_ineq = np.random.rand(m2, n)

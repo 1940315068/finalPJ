@@ -28,7 +28,11 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     A = np.vstack([A_eq, A_ineq])
     b = np.hstack([b_eq, b_ineq])
     k = 0
-    # p = np.dot(A, x) + b
+    # Check condition number
+    mat = H + mu * (np.dot(A.T, A))
+    print(f"Condition number (2-norm) in solving x_adal: {np.linalg.cond(mat)}")
+    print(f"Condition number (1-norm) in solving x_adal: {np.linalg.cond(mat, 1)}")
+    print(f"Condition number (inf-norm) in solving x_adal: {np.linalg.cond(mat, np.inf)}")
 
     for k in range(max_iter):
         # Step 1: Solve the augmented Lagrangian subproblem for x^(k+1) and p^(k+1)

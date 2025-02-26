@@ -26,11 +26,13 @@ H = np.dot(P, P.T)/2 + 0.1 * np.eye(n)
 g = np.random.rand(n)
 
 
+# start IRWA
 start_irwa = time.time()
 x_irwa, k_irwa = irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
 end_irwa = time.time()
 running_time_irwa = end_irwa-start_irwa
 
+# start ADAL
 start_adal = time.time()
 x_adal, k_adal = adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
 end_adal = time.time()
@@ -38,7 +40,6 @@ running_time_adal = end_adal-start_adal
 
 
 # Compare with osqp, l <= Ax <= u
-
 m = m1+m2
 u = np.zeros(m)
 l = np.zeros(m)
@@ -55,7 +56,8 @@ for i in range(m1):
 for i in range(m1,m):
     l[i] = -np.inf
     u[i] = -b[i]
-    
+
+# start OSQP
 start_osqp = time.time()
 prob = osqp.OSQP()
 prob.setup(P=P, q=q, A=A, l=l, u=u)
@@ -63,7 +65,7 @@ result_osqp = prob.solve()
 end_osqp = time.time()
 running_time_osqp = end_osqp-start_osqp
 
-
+# compute function value with/without penalty
 val_irwa_penalty = exact_penalty_func(H, g, x_irwa, A_eq, b_eq, A_ineq, b_ineq)
 val_adal_penalty = exact_penalty_func(H, g, x_adal, A_eq, b_eq, A_ineq, b_ineq)
 val_osqp_penalty = exact_penalty_func(H, g, result_osqp.x, A_eq, b_eq, A_ineq, b_ineq)
@@ -71,6 +73,7 @@ val_irwa_pri = quadratic_form(H, g, x_irwa)
 val_adal_pri = quadratic_form(H, g, x_adal)
 val_osqp_pri = quadratic_form(H, g, result_osqp.x)
 
+# show the comparison
 print("------------------------------------------------------------")
 print(f"IRWA function value with penalty: {val_irwa_penalty}")
 print(f"ADAL function value with penalty: {val_adal_penalty}")

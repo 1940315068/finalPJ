@@ -1,13 +1,13 @@
 import numpy as np
-from scipy.sparse.linalg import cg
-from functions import quadratic_form
+from functions import *
+from cg import cg
+
 
 def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
-
     print("========================================")
     print("----------------- IRWA -----------------")
 
-    # Get the length from imput
+    # Get the length from input
     n = len(g)  # number of variables
     m1 = len(b_eq)  # number of equality constraints
     m2 = len(b_ineq)  # number of inequality constraints
@@ -40,9 +40,7 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         # Use conjugate gradient to solve the linear system
         coeff_matrix = H + A.T @ W @ A
         rhs = - (g + A.T @ W @ v)
-        x_next, info = cg(coeff_matrix, rhs, maxiter=n*2, x0=x)
-        if info != 0:
-            raise RuntimeError("CG not converge!")
+        x_next = cg(coeff_matrix, rhs, maxiter=n*2, x0=x)
         
         # Step 2. Set the new relaxation vector epsilon^(k+1)
         q = np.zeros(m)
@@ -58,10 +56,18 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
             epsilon_next = epsilon * eta
 
         # Step 3. Check stopping criteria
-        if np.linalg.norm(x_next-x) <= sigma and np.linalg.norm(epsilon) <= sigma_prime:
+        norm_dx = np.linalg.norm(x_next-x)
+        norm_eps = np.linalg.norm(epsilon)
+        if norm_dx <= sigma and norm_eps <= sigma_prime:
             print(f"Iteration ends at {k} times.")
-            val = quadratic_form(H,g,x)
-            print(f"Function value = {val}")
+            # show the current function value with/without penalty
+            val = quadratic_form(H, g, x)
+            val_penalty = exact_penalty_func(H,g,x,A_eq,b_eq,A_ineq,b_ineq)
+            print(f"Function value without penalty : {val}")
+            print(f"Function value with penalty :    {val_penalty}")
+            # show the current norm of dx and epsilon
+            print(f"Current norm of dx: {norm_dx}")
+            print(f"Current norm of epsilon: {norm_eps}")
             print("========================================")
             return x, k
         
@@ -69,15 +75,18 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         epsilon = epsilon_next
         # Output the function value every 100 iterations
         if k % 100 == 0:
-            # Calculate the function value here 
-            func_value = quadratic_form(H, g, x) 
-            # func_value_penalty = obj_func_penalty(x, g, H, A, b, l, m)
-            print(f"Iteration {k}")
-            print(f"Function value = {func_value}")
-            # print(f"Function value with penalty = {func_value_penalty}")
+            print(f"Iteration {k}:")
+            # show the current function value with/without penalty
+            val = quadratic_form(H, g, x)
+            val_penalty = exact_penalty_func(H,g,x,A_eq,b_eq,A_ineq,b_ineq)
+            print(f"Function value without penalty : {val}")
+            print(f"Function value with penalty :    {val_penalty}")
+            # show the current norm of dx and epsilon
+            print(f"Current norm of dx: {norm_dx}")
+            print(f"Current norm of epsilon: {norm_eps}")
             print()
         
-    print(f"No converge! Iteration ends at {k} times. ")
+    print(f"No converge in {k} iterations.")
     print("========================================")
     return x, k
 

@@ -13,16 +13,15 @@ m2 = 20  # number of inequality constraints
 
 # equality constraints 
 A_eq = np.random.rand(m1, n)
-b_eq = np.zeros(m2)
+b_eq = np.zeros(m1)
 
 # inequality constraints
 A_ineq = np.random.rand(m2, n)
 b_ineq = np.random.rand(m2)
 
 # define the phi(x) with H and g
-k = 5
 P = np.random.rand(n, 5)
-H = np.dot(P, P.T)/2 + 0.1 * np.eye(n)
+H = np.dot(P, P.T) + 0.1 * np.eye(n)
 g = np.random.rand(n)
 
 

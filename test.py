@@ -7,9 +7,9 @@ from scipy.sparse import csc_matrix
 import time
 
 
-n = 100  # number of variables
-m1 = 20  # number of equality constraints
-m2 = 20  # number of inequality constraints
+n = 4000  # number of variables
+m1 = 400  # number of equality constraints
+m2 = 400  # number of inequality constraints
 
 # equality constraints 
 A_eq = np.random.rand(m1, n)

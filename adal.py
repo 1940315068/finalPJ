@@ -15,7 +15,7 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
 
     # Hyper parameters:
     u0 = np.zeros(m)  # relaxation vector, non-negative  
-    mu = 0.01  # penalty parameter, > 0 
+    mu = 0.005  # penalty parameter, > 0 
     sigma = 1e-7  # termination tolerance 
     sigma_prime = 1e-7  # termination tolerance 
 
@@ -29,24 +29,21 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     A = np.vstack([A_eq, A_ineq])
     b = np.hstack([b_eq, b_ineq])
     k = 0
-    # Check condition number
-    mat = H + mu * (np.dot(A.T, A))
-    print(f"Condition number (2-norm) in solving x_adal: {np.linalg.cond(mat)}")
-    print(f"Condition number (1-norm) in solving x_adal: {np.linalg.cond(mat, 1)}")
-    print(f"Condition number (inf-norm) in solving x_adal: {np.linalg.cond(mat, np.inf)}")
 
     for k in range(max_iter):
         # Step 1: Solve the augmented Lagrangian subproblem for x^(k+1) and p^(k+1)
         
         # Solve for p^(k+1), set the values of p[i] explicitly
-        p_next = np.zeros(m)
-        s = np.dot(A, x) + b + 1/mu*u
-        # Equality constraints
-        for i in range(m1):
-            p_next[i] = np.sign(s[i]) * max(np.abs(s[i]) - 1/mu, 0)
-        # Inequality constraints
-        for i in range(m1, m):
-            p_next[i] = max(s[i] - 1/mu, 0) - max(-s[i], 0)
+        # Compute s = A @ x + b + 1/mu * u
+        s = np.dot(A, x) + b + 1/mu * u
+        # Equality constraints (first m1 constraints)
+        s_eq = s[:m1]
+        p_eq = np.sign(s_eq) * np.maximum(np.abs(s_eq) - 1/mu, 0)
+        # Inequality constraints (remaining m2 constraints)
+        s_ineq = s[m1:]
+        p_ineq = np.maximum(s_ineq - 1/mu, 0) - np.maximum(-s_ineq, 0)
+        # Combine the results
+        p_next = np.concatenate([p_eq, p_ineq])
         
         # Solve for x^(k+1), use conjugate gradient to solve the linear system
         coeff_matrix = H + mu * (np.dot(A.T, A))

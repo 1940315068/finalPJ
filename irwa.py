@@ -43,14 +43,12 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         x_next = cg(coeff_matrix, rhs, maxiter=n*2, x0=x)
         
         # Step 2. Set the new relaxation vector epsilon^(k+1)
-        q = np.zeros(m)
-        r = np.zeros(m)
-        for i in range(m1):
-            q[i] = np.dot(A[i], x_next - x)
-            r[i] = np.dot(A[i], x) + b[i]
-        for i in range(m1, m):
-            q[i] = np.dot(A[i], x_next - x)
-            r[i] = max(np.dot(A[i], x) + b[i], 0)
+        # Compute q = A @ (x_next - x)
+        q = np.dot(A, x_next - x)
+        # Compute r for all constraints
+        r = np.dot(A, x) + b
+        # Handle inequality constraints (remaining m2 constraints)
+        r[m1:] = np.maximum(r[m1:], 0)
         
         if np.all(np.abs(q) <= M*(r**2 + epsilon**2)**(0.5+gamma)):
             epsilon_next = epsilon * eta
@@ -94,13 +92,14 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
 def compute_W(x, epsilon, A, b, m1:int, m2:int):
     m = len(b)  # total number of constraints
     assert m == m1 + m2, f"Error: m (total constraints) should be equal to m1 + m2. Got m={m}, m1={m1}, m2={m2}"
-    diagonal_elements = np.zeros(m)
-    # Inequality constraints
-    for i in range(m1):
-        diagonal_elements[i] = (np.abs(np.dot(A[i], x) + b[i])**2 + epsilon[i]**2)**(-1/2) 
-    # Equality constraints
-    for i in range(m1, m):
-        diagonal_elements[i] = (max(np.dot(A[i], x) + b[i], 0)**2 + epsilon[i]**2)**(-1/2)   
+    # Compute A @ x + b for all constraints
+    Ax_plus_b = np.dot(A, x) + b
+    # Inequality constraints (first m1 constraints)
+    ineq_part = np.abs(Ax_plus_b[:m1])**2 + epsilon[:m1]**2
+    # Equality constraints (remaining m2 constraints)
+    eq_part = np.maximum(Ax_plus_b[m1:], 0)**2 + epsilon[m1:]**2
+    # Combine the results
+    diagonal_elements = np.concatenate([ineq_part, eq_part])**(-0.5)
     # Generate the diagonal matrix W
     W = np.diag(diagonal_elements)
     return W
@@ -109,11 +108,9 @@ def compute_W(x, epsilon, A, b, m1:int, m2:int):
 def compute_v(x_tilde, A, b, m1:int, m2:int):
     m = len(b)  # total number of constraints
     assert m == m1 + m2, f"Error: m (total constraints) should be equal to m1 + m2. Got m={m}, m1={m1}, m2={m2}"
-    v = np.zeros(m)
-    # Inequality constraints
-    for i in range(m1):
-        v[i] = b[i]
-    # Equality constraints
-    for i in range(m1, m):
-        v[i] = b[i] - min(np.dot(A[i], x_tilde) + b[i], 0)
+    # Initialize v by copying b
+    v = b.copy()
+    # Equality constraints (remaining m2 constraints)
+    Ax_plus_b = np.dot(A[m1:], x_tilde) + b[m1:]
+    v[m1:] -= np.minimum(Ax_plus_b, 0)
     return v

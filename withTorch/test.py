@@ -86,6 +86,9 @@ val_osqp_pri = quadratic_form(H, g, x_osqp)
 
 # show the comparison
 print("------------------------------------------------------------")
+print(f"Number of variables: {n}")
+print(f"Number of constraints: {m1} + {m2} = {m}")
+print("------------------------------------------------------------")
 print(f"IRWA function value with penalty: {val_irwa_penalty}")
 print(f"ADAL function value with penalty: {val_adal_penalty}")
 print(f"OSQP function value with penalty: {val_osqp_penalty}")
@@ -97,4 +100,4 @@ print("------------------------------------------------------------")
 print(f"IRWA running time: {running_time_irwa}")
 print(f"ADAL running time: {running_time_adal}")
 print(f"OSQP running time: {running_time_osqp}")
-
+print("------------------------------------------------------------")

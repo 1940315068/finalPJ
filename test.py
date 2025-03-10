@@ -63,6 +63,8 @@ prob.setup(P=P, q=q, A=A, l=l, u=u)
 result_osqp = prob.solve()
 end_osqp = time.time()
 running_time_osqp = end_osqp-start_osqp
+# x_osqp = result_osqp.x
+k_osqp = result_osqp.info.iter
 
 # compute function value with/without penalty
 val_irwa_penalty = exact_penalty_func(H, g, x_irwa, A_eq, b_eq, A_ineq, b_ineq)
@@ -82,6 +84,7 @@ print(f"IRWA function value without penalty: {val_irwa_pri}")
 print(f"ADAL function value without penalty: {val_adal_pri}")
 print(f"OSQP function value without penalty: {val_osqp_pri}")
 print("------------------------------------------------------------")
-print(f"IRWA running time: {running_time_irwa}")
-print(f"ADAL running time: {running_time_adal}")
-print(f"OSQP running time: {running_time_osqp}")
+print(f"IRWA running time: {running_time_irwa:.3f}s, iteration: {k_irwa}")
+print(f"ADAL running time: {running_time_adal:.3f}s, iteration: {k_adal}")
+print(f"OSQP running time: {running_time_osqp:.3f}s, iteration: {k_osqp}")
+print("------------------------------------------------------------")

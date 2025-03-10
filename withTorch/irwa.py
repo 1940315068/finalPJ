@@ -14,8 +14,8 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     m = m1 + m2  # total number of constraints
 
     # Hyper parameters:
-    epsilon0 = 200 * torch.ones(m)  # relaxation vector, positive
-    eta = 0.7  # scaling parameter, in (0,1)
+    epsilon0 = 2000 * torch.ones(m)  # relaxation vector, positive
+    eta = 0.8  # scaling parameter, in (0,1)
     gamma = 0.15  # scaling parameter, > 0
     M = 10  # scaling parameter, > 0
     sigma = 1e-7  # termination tolerance

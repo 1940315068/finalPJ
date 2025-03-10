@@ -15,7 +15,7 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
 
     # Hyper parameters:
     u0 = np.zeros(m)  # relaxation vector, non-negative  
-    mu = 0.005  # penalty parameter, > 0 
+    mu = 0.001  # penalty parameter, > 0 
     sigma = 1e-7  # termination tolerance 
     sigma_prime = 1e-7  # termination tolerance 
 

@@ -19,6 +19,24 @@ b_eq = np.zeros(m1)
 A_ineq = np.random.rand(m2, n)
 b_ineq = np.random.rand(m2)
 
+# Add infeasible constraints of equality: Ax+b=0, Ax-b=0
+m1_infeasible = 10
+m1 += 2*m1_infeasible
+A_eq_infeasible = np.random.rand(m1_infeasible, n)
+A_eq = np.vstack([A_eq, A_eq_infeasible, A_eq_infeasible])
+b_eq_infeasible = np.random.rand(m1_infeasible)
+b_eq = np.hstack([b_eq, b_eq_infeasible, -b_eq_infeasible])
+
+# Add infeasible constraints of inequality: Ax+1<=0, -Ax<=0
+m2_infeasible = 0
+m2 += 2*m2_infeasible
+A_ineq_infeasible = np.random.rand(m2_infeasible, n)
+A_ineq = np.vstack([A_ineq, A_ineq_infeasible, -A_ineq_infeasible])
+b_ones_infeasible = np.ones(m2_infeasible)
+b_zeros_infeasible = np.zeros(m2_infeasible)
+b_ineq = np.hstack([b_ineq, b_ones_infeasible, b_zeros_infeasible])
+
+
 # define the phi(x) with H and g
 P = np.random.rand(n, 5)
 H = np.dot(P, P.T) + 0.1 * np.eye(n)

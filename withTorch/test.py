@@ -15,7 +15,7 @@ torch.set_default_device(device)
 print(f"Using device: {device}")
 
 
-n = 4000  # number of variables
+n = 2000  # number of variables
 m1 = 400  # number of equality constraints
 m2 = 400  # number of inequality constraints
 
@@ -26,6 +26,24 @@ b_eq = torch.zeros(m1)
 # inequality constraints
 A_ineq = torch.rand(m2, n)
 b_ineq = torch.rand(m2)
+
+# Add infeasible constraints of equality: Ax+b=0, Ax-b=0
+m1_infeasible = 10
+m1 += 2*m1_infeasible
+A_eq_infeasible = torch.rand(m1_infeasible, n)
+A_eq = torch.vstack([A_eq, A_eq_infeasible, A_eq_infeasible])
+b_eq_infeasible = torch.rand(m1_infeasible)
+b_eq = torch.hstack([b_eq, b_eq_infeasible, -b_eq_infeasible])
+
+# Add infeasible constraints of inequality: Ax+1<=0, -Ax<=0
+m2_infeasible = 0
+m2 += 2*m2_infeasible
+A_ineq_infeasible = torch.rand(m2_infeasible, n)
+A_ineq = torch.vstack([A_ineq, A_ineq_infeasible, -A_ineq_infeasible])
+b_ones_infeasible = torch.ones(m2_infeasible)
+b_zeros_infeasible = torch.zeros(m2_infeasible)
+b_ineq = torch.hstack([b_ineq, b_ones_infeasible, b_zeros_infeasible])
+
 
 # define the phi(x) with H and g
 P = torch.rand(n, 5)

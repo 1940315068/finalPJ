@@ -34,8 +34,8 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     # Hyper parameters:
     u0 = torch.zeros(m)  # relaxation vector, non-negative
     mu = 0.001  # penalty parameter, > 0
-    sigma = 1e-7  # termination tolerance
-    sigma_prime = 1e-7  # termination tolerance
+    sigma = 1e-6  # termination tolerance
+    sigma_prime = 1e-6  # termination tolerance
 
     # Set x0 as zeros if not provided
     if x0 is None:
@@ -103,6 +103,25 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
             print(f"Current norm of dx: {norm_dx}")
             print(f"Current norm* of residual Ax + b - p : {norm_residual}")
             print()
+            
+        # Check primal infeasibility by computing the support function of C at du
+        if k % 20 == 0:
+            y = mu * residual  # y=du
+            ATy = torch.matmul(A.T, y)
+            norm_ATy = torch.norm(ATy)
+            if norm_ATy < 1e-6:
+                support_func_eq = -torch.sum(b[:m1] * y[:m1])
+                support_func_ineq = torch.sum(torch.where(y[m1:] >= 0, -b[m1:] * y[m1:], 9999))  # 9999 as +infty
+                if support_func_eq < 0:
+                    # print(f"Iteration ends at {k} times: Primal infeasible of equality constraints!")
+                    # return x,k
+                    raise ValueError(f"Iteration ends at {k} times: Primal infeasible!")
+                elif support_func_ineq < 0:
+                    print(f"Iteration ends at {k} times: Primal infeasible of inequality constraints!")
+                    return x,k
+                    # raise ValueError(f"Iteration ends at {k} times: Primal infeasible of inequality constraints!")
+                    
+        
 
     print(f"No converge! Iteration ends at {k} times. ")
     print("========================================")

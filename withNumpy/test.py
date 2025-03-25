@@ -20,7 +20,7 @@ A_ineq = np.random.rand(m2, n)
 b_ineq = np.random.rand(m2)
 
 # Add infeasible constraints of equality: Ax+b=0, Ax-b=0
-m1_infeasible = 10
+m1_infeasible = 0
 m1 += 2*m1_infeasible
 A_eq_infeasible = np.random.rand(m1_infeasible, n)
 A_eq = np.vstack([A_eq, A_eq_infeasible, A_eq_infeasible])
@@ -81,16 +81,19 @@ prob.setup(P=P, q=q, A=A, l=l, u=u)
 result_osqp = prob.solve()
 end_osqp = time.time()
 running_time_osqp = end_osqp-start_osqp
-# x_osqp = result_osqp.x
+x_osqp = result_osqp.x
 k_osqp = result_osqp.info.iter
 
 # compute function value with/without penalty
 val_irwa_penalty = exact_penalty_func(H, g, x_irwa, A_eq, b_eq, A_ineq, b_ineq)
 val_adal_penalty = exact_penalty_func(H, g, x_adal, A_eq, b_eq, A_ineq, b_ineq)
-val_osqp_penalty = exact_penalty_func(H, g, result_osqp.x, A_eq, b_eq, A_ineq, b_ineq)
+val_osqp_penalty = exact_penalty_func(H, g, x_osqp, A_eq, b_eq, A_ineq, b_ineq)
 val_irwa_pri = quadratic_form(H, g, x_irwa)
 val_adal_pri = quadratic_form(H, g, x_adal)
-val_osqp_pri = quadratic_form(H, g, result_osqp.x)
+val_osqp_pri = quadratic_form(H, g, x_osqp)
+penalty_irwa = val_irwa_penalty - val_irwa_pri
+penalty_adal = val_adal_penalty - val_adal_pri
+penalty_osqp = val_osqp_penalty - val_osqp_pri
 
 # show the comparison
 print("------------------------------------------------------------")
@@ -101,6 +104,10 @@ print("------------------------------------------------------------")
 print(f"IRWA function value without penalty: {val_irwa_pri}")
 print(f"ADAL function value without penalty: {val_adal_pri}")
 print(f"OSQP function value without penalty: {val_osqp_pri}")
+print("------------------------------------------------------------")
+print(f"IRWA penalty: {penalty_irwa}")
+print(f"ADAL penalty: {penalty_adal}")
+print(f"OSQP penalty: {penalty_osqp}")
 print("------------------------------------------------------------")
 print(f"IRWA running time: {running_time_irwa:.3f}s, iteration: {k_irwa}")
 print(f"ADAL running time: {running_time_adal:.3f}s, iteration: {k_adal}")

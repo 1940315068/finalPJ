@@ -8,8 +8,8 @@ import time
 
 
 n = 1000  # number of variables
-m1 = 100  # number of equality constraints
-m2 = 100  # number of inequality constraints
+m1 = 300  # number of equality constraints
+m2 = 300  # number of inequality constraints
 
 # equality constraints 
 A_eq = np.random.rand(m1, n)
@@ -45,13 +45,13 @@ g = np.random.rand(n)
 
 # start IRWA
 start_irwa = time.time()
-x_irwa, k_irwa = irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
+x_irwa, k_irwa, n_cg_steps_irwa, time_cg_irwa = irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
 end_irwa = time.time()
 running_time_irwa = end_irwa-start_irwa
 
 # start ADAL
 start_adal = time.time()
-x_adal, k_adal = adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
+x_adal, k_adal, n_cg_steps_adal, time_cg_adal = adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
 end_adal = time.time()
 running_time_adal = end_adal-start_adal
 
@@ -97,19 +97,22 @@ penalty_osqp = val_osqp_penalty - val_osqp_pri
 
 # show the comparison
 print("------------------------------------------------------------")
-print(f"IRWA function value with penalty: {val_irwa_penalty}")
-print(f"ADAL function value with penalty: {val_adal_penalty}")
-print(f"OSQP function value with penalty: {val_osqp_penalty}")
+print(f"IRWA function value with penalty: {val_irwa_penalty:.6f}")
+print(f"ADAL function value with penalty: {val_adal_penalty:.6f}")
+print(f"OSQP function value with penalty: {val_osqp_penalty:.6f}")
 print("------------------------------------------------------------")
-print(f"IRWA function value without penalty: {val_irwa_pri}")
-print(f"ADAL function value without penalty: {val_adal_pri}")
-print(f"OSQP function value without penalty: {val_osqp_pri}")
+print(f"IRWA function value without penalty: {val_irwa_pri:.6f}")
+print(f"ADAL function value without penalty: {val_adal_pri:.6f}")
+print(f"OSQP function value without penalty: {val_osqp_pri:.6f}")
 print("------------------------------------------------------------")
-print(f"IRWA penalty: {penalty_irwa}")
-print(f"ADAL penalty: {penalty_adal}")
-print(f"OSQP penalty: {penalty_osqp}")
+print(f"IRWA penalty: {penalty_irwa:.3e}")
+print(f"ADAL penalty: {penalty_adal:.3e}")
+print(f"OSQP penalty: {penalty_osqp:.3e}")
 print("------------------------------------------------------------")
 print(f"IRWA running time: {running_time_irwa:.3f}s, iteration: {k_irwa}")
 print(f"ADAL running time: {running_time_adal:.3f}s, iteration: {k_adal}")
 print(f"OSQP running time: {running_time_osqp:.3f}s, iteration: {k_osqp}")
+print("------------------------------------------------------------")
+print(f"IRWA CG steps: {n_cg_steps_irwa}, CG total computation time: {time_cg_irwa:.4f}s")
+print(f"ADAL CG steps: {n_cg_steps_adal}, CG total computation time: {time_cg_adal:.4f}s")
 print("------------------------------------------------------------")

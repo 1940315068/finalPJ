@@ -1,6 +1,7 @@
 import numpy as np
 from functions import *
 from cg import cg
+import time
 
 
 def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
@@ -18,8 +19,8 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     eta = 0.8  # scaling parameter, in (0,1) 
     gamma = 0.15  # scaling parameter, > 0 
     M = 10  # scaling parameter, > 0 
-    sigma = 1e-7  # termination tolerance 
-    sigma_prime = 1e-7  # termination tolerance 
+    sigma = 1e-6  # termination tolerance 
+    sigma_prime = 1e-6  # termination tolerance 
 
     # Set x0 as zeros if not provided 
     if x0 is None:
@@ -30,7 +31,9 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     epsilon = epsilon0
     A = np.vstack([A_eq, A_ineq])
     b = np.hstack([b_eq, b_ineq])
-
+    n_cg_steps = 0  # number of cg steps in total
+    time_cg = 0
+    
     # Iteration
     for k in range(max_iter):
         # Step 1. Solve the reweighted subproblem for x^(k+1) 
@@ -40,7 +43,11 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         # Use conjugate gradient to solve the linear system
         coeff_matrix = H + A.T @ W @ A
         rhs = - (g + A.T @ W @ v)
-        x_next = cg(coeff_matrix, rhs, maxiter=n*2, x0=x)
+        cg_start_time = time.time()
+        x_next, cg_steps = cg(coeff_matrix, rhs, maxiter=n, x0=x, rtol=sigma*1e-3) 
+        cg_end_time = time.time()
+        time_cg += (cg_end_time - cg_start_time)
+        n_cg_steps += cg_steps
         
         # Step 2. Set the new relaxation vector epsilon^(k+1)
         # Compute q = A @ (x_next - x)
@@ -67,7 +74,7 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
             print(f"Current norm of dx: {norm_dx}")
             print(f"Current norm of epsilon: {norm_eps}")
             print("========================================")
-            return x, k
+            return x, k, n_cg_steps, time_cg
         
         x = x_next
         epsilon = epsilon_next
@@ -86,7 +93,7 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         
     print(f"No converge in {k} iterations.")
     print("========================================")
-    return x, k
+    return x, k, n_cg_steps, time_cg
 
 
 def compute_W(x, epsilon, A, b, m1:int, m2:int):

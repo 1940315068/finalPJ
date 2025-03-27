@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def cg(A, b, x0=None, maxiter=None, rtol=1e-10):
+def cg(A, b, x0=None, maxiter=None, rtol=1e-6, atol=1e-12):
     """
     Conjugate Gradient Method for solving the linear system Ax = b using NumPy.
 
@@ -10,17 +10,20 @@ def cg(A, b, x0=None, maxiter=None, rtol=1e-10):
         b (np.ndarray): Right-hand side vector (n).
         x0 (np.ndarray, optional): Initial guess for the solution. Defaults to zero vector.
         max_iter (int, optional): Maximum number of iterations. Defaults to n.
-        rtol (float, optional): Relative tolerance for convergence. Defaults to 1e-10.
+        rtol (float, optional): Relative tolerance for convergence. Defaults to 1e-6.
+        atol (float, optional): Absolute tolerance for convergence. Defaults to 1e-12.
 
     Returns:
         x (np.ndarray): Solution to the linear system.
+        k (int): Number of iterations.
 
     Raises:
         ValueError: If A is not symmetric.
     """
 
     # Ensure A is symmetric
-    A = 0.5 * (A + A.T)
+    if not np.allclose(A, A.T, atol=1e-8): 
+        raise ValueError("Matrix A is not symmetric")
 
     n = b.size
     if maxiter is None:
@@ -38,21 +41,21 @@ def cg(A, b, x0=None, maxiter=None, rtol=1e-10):
 
     rs_old = np.dot(r, r)  # Dot product of residual
 
-    for i in range(maxiter):
+    for k in range(maxiter):
         Ap = np.dot(A, p)  # Matrix-vector product
         alpha = rs_old / np.dot(p, Ap)  # Step size
         x = x + alpha * p  # Update solution
         r = r - alpha * Ap  # Update residual
 
         rs_new = np.dot(r, r)  # New residual dot product
-        if np.linalg.norm(r) < rtol * np.linalg.norm(b):  # Check convergence
+        if np.linalg.norm(r) < rtol * np.linalg.norm(b) or np.linalg.norm(r) < atol:  # Check convergence
             # print(f"Conjugate Gradient converged after {i+1} iterations.")
             break
 
         p = r + (rs_new / rs_old) * p  # Update search direction
         rs_old = rs_new  # Update residual dot product
 
-    return x
+    return x, k+1
 
 
 # Example

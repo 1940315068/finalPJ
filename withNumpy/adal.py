@@ -33,12 +33,16 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     n_cg_steps = 0  # number of cg steps in total
     time_cg = 0
     
+    # Precomputation
+    coeff_matrix = H + mu * (np.matmul(A.T, A))
+    # inv_matrix = np.linalg.inv(coeff_matrix)  # compute the inverse to solve the linear system
+    
     for k in range(max_iter):
         # Step 1: Solve the augmented Lagrangian subproblem for x^(k+1) and p^(k+1)
         
         # Solve for p^(k+1), set the values of p[i] explicitly
         # Compute s = A @ x + b + 1/mu * u
-        s = np.dot(A, x) + b + 1/mu * u
+        s = A @ x + b + 1/mu * u
         # Equality constraints (first m1 constraints)
         s_eq = s[:m1]
         p_eq = np.sign(s_eq) * np.maximum(np.abs(s_eq) - 1/mu, 0)
@@ -49,16 +53,16 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         p_next = np.concatenate([p_eq, p_ineq])
         
         # Solve for x^(k+1), use conjugate gradient to solve the linear system
-        coeff_matrix = H + mu * (np.dot(A.T, A))
-        rhs = - (g + np.dot(A.T, u) + mu * np.dot(A.T, b - p_next))
+        rhs = - (g + np.matmul(A.T, u) + mu * np.matmul(A.T, b - p_next))
         cg_start_time = time.time()
         x_next, cg_steps = cg(coeff_matrix, rhs, maxiter=n, x0=x, rtol=sigma*1e-3) 
+        # x_next = inv_matrix @ rhs; cg_steps = 0  # directly scompute the solution with the inverse matrix
         cg_end_time = time.time()
         time_cg += (cg_end_time - cg_start_time)
         n_cg_steps += cg_steps
         
         # Step 2: Set the new multiplier u^(k+1)
-        residual = np.dot(A, x_next) + b - p_next
+        residual = A @ x_next + b - p_next
         u_next = u + mu * residual
 
         # Step 3: Check the stopping criterion

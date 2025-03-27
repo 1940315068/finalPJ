@@ -37,12 +37,13 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     # Iteration
     for k in range(max_iter):
         # Step 1. Solve the reweighted subproblem for x^(k+1) 
-        W = compute_W(x, epsilon, A, b, m1, m2)
+        w = compute_w(x, epsilon, A, b, m1, m2)
         v = compute_v(x, A, b, m1, m2)
 
         # Use conjugate gradient to solve the linear system
-        coeff_matrix = H + A.T @ W @ A
-        rhs = - (g + A.T @ W @ v)
+        ATW = (A.T*w)
+        coeff_matrix = H + ATW @ A
+        rhs = - (g + ATW @ v)
         cg_start_time = time.time()
         x_next, cg_steps = cg(coeff_matrix, rhs, maxiter=n, x0=x, rtol=sigma*1e-3) 
         cg_end_time = time.time()
@@ -51,9 +52,9 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         
         # Step 2. Set the new relaxation vector epsilon^(k+1)
         # Compute q = A @ (x_next - x)
-        q = np.dot(A, x_next - x)
+        q = np.matmul(A, x_next - x)
         # Compute r for all constraints
-        r = np.dot(A, x) + b
+        r = A @ x + b
         # Handle inequality constraints (remaining m2 constraints)
         r[m1:] = np.maximum(r[m1:], 0)
         
@@ -96,20 +97,18 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     return x, k, n_cg_steps, time_cg
 
 
-def compute_W(x, epsilon, A, b, m1:int, m2:int):
+def compute_w(x, epsilon, A, b, m1:int, m2:int):
     m = len(b)  # total number of constraints
     assert m == m1 + m2, f"Error: m (total constraints) should be equal to m1 + m2. Got m={m}, m1={m1}, m2={m2}"
     # Compute A @ x + b for all constraints
-    Ax_plus_b = np.dot(A, x) + b
-    # Inequality constraints (first m1 constraints)
-    ineq_part = np.abs(Ax_plus_b[:m1])**2 + epsilon[:m1]**2
-    # Equality constraints (remaining m2 constraints)
-    eq_part = np.maximum(Ax_plus_b[m1:], 0)**2 + epsilon[m1:]**2
-    # Combine the results
-    diagonal_elements = np.concatenate([ineq_part, eq_part])**(-0.5)
-    # Generate the diagonal matrix W
-    W = np.diag(diagonal_elements)
-    return W
+    Ax_plus_b = A @ x + b
+    # Equality constraints (first m1 constraints)
+    eq_part = np.abs(Ax_plus_b[:m1])**2 + epsilon[:m1]**2
+    # Inequality constraints (remaining m2 constraints)
+    ineq_part = np.maximum(Ax_plus_b[m1:], 0)**2 + epsilon[m1:]**2
+    # Combine the results as the diagonal elements
+    w = np.concatenate([eq_part, ineq_part])**(-0.5)
+    return w
 
 
 def compute_v(x_tilde, A, b, m1:int, m2:int):
@@ -117,7 +116,7 @@ def compute_v(x_tilde, A, b, m1:int, m2:int):
     assert m == m1 + m2, f"Error: m (total constraints) should be equal to m1 + m2. Got m={m}, m1={m1}, m2={m2}"
     # Initialize v by copying b
     v = b.copy()
-    # Equality constraints (remaining m2 constraints)
-    Ax_plus_b = np.dot(A[m1:], x_tilde) + b[m1:]
-    v[m1:] -= np.minimum(Ax_plus_b, 0)
+    # Inequality constraints (remaining m2 constraints)
+    Ax_plus_b_ineq = np.matmul(A[m1:], x_tilde) + b[m1:]
+    v[m1:] -= np.minimum(Ax_plus_b_ineq, 0)
     return v

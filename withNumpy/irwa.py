@@ -48,23 +48,28 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         x_next, cg_steps = cg(coeff_matrix, rhs, maxiter=n, x0=x, rtol=sigma*1e-3) 
         cg_end_time = time.time()
         time_cg += (cg_end_time - cg_start_time)
+        # print(f"CG steps: {cg_steps:03d},  max_w = {max(w):.2e},  min_w = {min(w):.2e},  condition number of ATWA: {np.linalg.cond(coeff_matrix):.2e}")
         n_cg_steps += cg_steps
         
         # Step 2. Set the new relaxation vector epsilon^(k+1)
         # Compute q = A @ (x_next - x)
         q = np.matmul(A, x_next - x)
         # Compute r for all constraints
-        r = A @ x + b
+        Ax_plus_b = A @ x + b
+        r = Ax_plus_b.copy()
         # Handle inequality constraints (remaining m2 constraints)
         r[m1:] = np.maximum(r[m1:], 0)
         
         if np.all(np.abs(q) <= M*(r**2 + epsilon**2)**(0.5+gamma)):
             epsilon_next = epsilon * eta
+            # Keep the original epsilon value for inactive inequality constraints
+            indices = np.where((np.arange(len(Ax_plus_b)) >= m1) & (Ax_plus_b < -epsilon))[0]  # i >= m1 and (Ax+b)[i] < -eps[i]
+            epsilon_next[indices] = epsilon[indices]
 
         # Step 3. Check stopping criteria
         norm_dx = np.linalg.norm(x_next-x)
         norm_eps = np.linalg.norm(epsilon)
-        if norm_dx <= sigma and norm_eps <= sigma_prime:
+        if norm_dx <= sigma: # and norm_eps <= sigma_prime:
             print(f"Iteration ends at {k} times.")
             # show the current function value with/without penalty
             val = quadratic_form(H, g, x)

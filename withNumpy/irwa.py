@@ -62,8 +62,10 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         
         if np.all(np.abs(q) <= M*(r**2 + epsilon**2)**(0.5+gamma)):
             epsilon_next = epsilon * eta
-            # Keep the original epsilon value for inactive inequality constraints
-            indices = np.where((np.arange(len(Ax_plus_b)) >= m1) & (Ax_plus_b < -epsilon))[0]  # i >= m1 and (Ax+b)[i] < -eps[i]
+            # Keep the original epsilon value for the satisfied constraints
+            cond1 = (np.arange(len(Ax_plus_b)) < m1) & np.isclose(Ax_plus_b, 0, atol=1e-6)  # i < m1 and (Ax+b)[i] == 0
+            cond2 = (np.arange(len(Ax_plus_b)) >= m1) & (Ax_plus_b <= 0)  # i >= m1 and (Ax+b)[i] <= 0
+            indices = np.where(cond1 | cond2)[0]
             epsilon_next[indices] = epsilon[indices]
 
         # Step 3. Check stopping criteria

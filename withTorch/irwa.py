@@ -1,6 +1,7 @@
 import torch
 from functions import *
 from cg_torch import cg_torch
+import time
 
 
 def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
@@ -30,17 +31,25 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     epsilon = epsilon0
     A = torch.vstack([A_eq, A_ineq])
     b = torch.hstack([b_eq, b_ineq])
+    n_cg_steps = 0  # number of cg steps in total
+    time_cg = 0
 
     # Iteration
     for k in range(max_iter):
         # Step 1. Solve the reweighted subproblem for x^(k+1)
-        W = compute_W(x, epsilon, A, b, m1, m2)
+        w = compute_w(x, epsilon, A, b, m1, m2)
         v = compute_v(x, A, b, m1, m2)
 
         # Use conjugate gradient to solve the linear system
-        coeff_matrix = H + torch.matmul(A.T, torch.matmul(W, A))
-        rhs = -(g + torch.matmul(A.T, torch.matmul(W, v)))
-        x_next = cg_torch(coeff_matrix, rhs, x0=x, max_iter=n*2)
+        ATW = (A.T*w)
+        coeff_matrix = H + ATW @ A
+        rhs = - (g + ATW @ v)
+        cg_start_time = time.time()
+        x_next, cg_steps = cg_torch(coeff_matrix, rhs, maxiter=n, x0=x, rtol=sigma*1e-3) 
+        cg_end_time = time.time()
+        time_cg += (cg_end_time - cg_start_time)
+        # print(f"CG steps: {cg_steps:03d},  max_w = {max(w):.2e},  min_w = {min(w):.2e},  condition number of ATWA: {np.linalg.cond(coeff_matrix):.2e}")
+        n_cg_steps += cg_steps
 
         # Step 2. Set the new relaxation vector epsilon^(k+1)
         q = torch.matmul(A, x_next - x)
@@ -51,11 +60,16 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
 
         if torch.all(torch.abs(q) <= M * (r**2 + epsilon**2)**(0.5 + gamma)):
             epsilon_next = epsilon * eta
+            # Keep the original epsilon value for the satisfied constraints
+            cond1 = (torch.arange(len(Ax_plus_b)) < m1) & torch.isclose(Ax_plus_b, torch.tensor(0.0), atol=1e-6)  # i < m1 and (Ax+b)[i] == 0
+            cond2 = (torch.arange(len(Ax_plus_b)) >= m1) & (Ax_plus_b <= 0)  # i >= m1 and (Ax+b)[i] <= 0
+            indices = torch.where(cond1 | cond2)[0]
+            epsilon_next[indices] = epsilon[indices]
 
         # Step 3. Check stopping criteria
         norm_dx = torch.norm(x_next - x)
         norm_eps = torch.norm(epsilon)
-        if norm_dx <= sigma and norm_eps <= sigma_prime:
+        if norm_dx <= sigma:  # and norm_eps <= sigma_prime:
             print(f"Iteration ends at {k} times.")
             # Show the current function value with/without penalty
             val = quadratic_form(H, g, x)
@@ -66,7 +80,7 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
             print(f"Current norm of dx: {norm_dx}")
             print(f"Current norm of epsilon: {norm_eps}")
             print("========================================")
-            return x, k
+            return x, k, n_cg_steps, time_cg
 
         x = x_next
         epsilon = epsilon_next
@@ -85,45 +99,26 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
 
     print(f"No converge in {k} iterations.")
     print("========================================")
-    return x, k
+    return x, k, n_cg_steps, time_cg
 
 
-def compute_W(x, epsilon, A, b, m1: int, m2: int):
+def compute_w(x, epsilon, A, b, m1: int, m2: int):
     m = b.size(0)  # total number of constraints
-    assert m == m1 + m2, f"Error: m (total constraints) should be equal to m1 + m2. Got m={m}, m1={m1}, m2={m2}"
-
-    # diagonal_elements = torch.zeros(m)
-    # # Inequality constraints
-    # for i in range(m1):
-    #     diagonal_elements[i] = (torch.abs(torch.matmul(A[i], x) + b[i])**2 + epsilon[i]**2)**(-0.5)
-    # # Equality constraints
-    # for i in range(m1, m):
-    #     diagonal_elements[i] = (torch.max(torch.matmul(A[i], x) + b[i], torch.tensor(0.0))**2 + epsilon[i]**2)**(-0.5)
-    
-    # Compute A x + b for all constraints
-    Ax_plus_b = torch.matmul(A, x) + b
-    # Inequality constraints (first m1 constraints)
-    ineq_part = torch.abs(Ax_plus_b[:m1])**2 + epsilon[:m1]**2
-    # Equality constraints (remaining m2 constraints)
-    eq_part = torch.max(Ax_plus_b[m1:], torch.tensor(0.0))**2 + epsilon[m1:]**2
-    # Combine the results
-    diagonal_elements = torch.cat([ineq_part, eq_part])**(-0.5)
-    # Generate the diagonal matrix W
-    W = torch.diag(diagonal_elements)
-    return W
+    assert m == m1 + m2, f"Error: m (total constraints) should be equal to m1 + m2. Got m={m}, m1={m1}, m2={m2}"\
+    # Compute A @ x + b for all constraints
+    Ax_plus_b = A @ x + b
+    # Equality constraints (first m1 constraints)
+    eq_part = torch.abs(Ax_plus_b[:m1])**2 + epsilon[:m1]**2
+    # Inequality constraints (remaining m2 constraints)
+    ineq_part = torch.max(Ax_plus_b[m1:], torch.tensor(0.0))**2 + epsilon[m1:]**2
+    # Combine the results as the diagonal elements
+    w = torch.concatenate([eq_part, ineq_part])**(-0.5)
+    return w
 
 
 def compute_v(x_tilde, A, b, m1: int, m2: int):
     m = b.size(0)  # total number of constraints
     assert m == m1 + m2, f"Error: m (total constraints) should be equal to m1 + m2. Got m={m}, m1={m1}, m2={m2}"
-    # v = torch.zeros(m)
-    # # Inequality constraints
-    # for i in range(m1):
-    #     v[i] = b[i]
-    # # Equality constraints
-    # for i in range(m1, m):
-    #     v[i] = b[i] - torch.min(torch.matmul(A[i], x_tilde) + b[i], torch.tensor(0.0))
-
     # Compute A @ x_tilde + b for all constraints
     Ax_plus_b = torch.matmul(A, x_tilde) + b
     # Inequality constraints (first m1 constraints)

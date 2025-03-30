@@ -1,6 +1,8 @@
 import torch
 from functions import quadratic_form, exact_penalty_func
 from cg_torch import cg_torch
+import time
+
 
 def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     """
@@ -33,7 +35,7 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
 
     # Hyper parameters:
     u0 = torch.zeros(m)  # relaxation vector, non-negative
-    mu = 0.001  # penalty parameter, > 0
+    mu = min(0.1, 1/n)  # penalty parameter, > 0
     sigma = 1e-6  # termination tolerance
     sigma_prime = 1e-6  # termination tolerance
 
@@ -47,6 +49,11 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     A = torch.vstack([A_eq, A_ineq])
     b = torch.hstack([b_eq, b_ineq])
     k = 0
+    n_cg_steps = 0  # number of cg steps in total
+    time_cg = 0
+
+    # Precomputation
+    coeff_matrix = H + mu * (torch.matmul(A.T, A))
 
     for k in range(max_iter):
         # Step 1: Solve the augmented Lagrangian subproblem for x^(k+1) and p^(k+1)
@@ -64,9 +71,13 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         p_next = torch.cat([p_eq, p_ineq])
 
         # Solve for x^(k+1)
-        coeff_matrix = H + mu * (torch.matmul(A.T, A))
-        rhs = -(g + torch.matmul(A.T, u) + mu * torch.matmul(A.T, b - p_next))
-        x_next = cg_torch(coeff_matrix, rhs, x0=x, max_iter=n*2)  # Conjugate Gradient, on GPU
+        rhs = - (g + torch.matmul(A.T, u) + mu * torch.matmul(A.T, b - p_next))
+        cg_start_time = time.time()
+        x_next, cg_steps = cg_torch(coeff_matrix, rhs, maxiter=n, x0=x, rtol=sigma*1e-3) 
+        # x_next = inv_matrix @ rhs; cg_steps = 0  # directly scompute the solution with the inverse matrix
+        cg_end_time = time.time()
+        time_cg += (cg_end_time - cg_start_time)
+        n_cg_steps += cg_steps
 
         # Step 2: Set the new multiplier u^(k+1)
         residual = torch.matmul(A, x_next) + b - p_next
@@ -86,7 +97,7 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
             print(f"Current norm of dx: {norm_dx}")
             print(f"Current norm* of residual Ax + b - p : {norm_residual}")
             print("========================================")
-            return x, k
+            return x, k, n_cg_steps, time_cg
 
         x = x_next
         u = u_next
@@ -114,15 +125,15 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
                 support_func_ineq = torch.sum(torch.where(y[m1:] >= 0, -b[m1:] * y[m1:], 9999))  # 9999 as +infty
                 if support_func_eq < 0:
                     # print(f"Iteration ends at {k} times: Primal infeasible of equality constraints!")
-                    # return x,k
+                    # return x,k, n_cg_steps, time_cg
                     raise ValueError(f"Iteration ends at {k} times: Primal infeasible!")
                 elif support_func_ineq < 0:
-                    print(f"Iteration ends at {k} times: Primal infeasible of inequality constraints!")
-                    return x,k
-                    # raise ValueError(f"Iteration ends at {k} times: Primal infeasible of inequality constraints!")
+                    # print(f"Iteration ends at {k} times: Primal infeasible of inequality constraints!")
+                    # return x,k, n_cg_steps, time_cg
+                    raise ValueError(f"Iteration ends at {k} times: Primal infeasible of inequality constraints!")
                     
         
 
     print(f"No converge! Iteration ends at {k} times. ")
     print("========================================")
-    return x, k
+    return x, k, n_cg_steps, time_cg

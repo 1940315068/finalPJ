@@ -1,6 +1,6 @@
 import torch
 
-def cg_torch(A, b, x0=None, max_iter=None, rtol=1e-10):
+def cg_torch(A, b, x0=None, maxiter=None, rtol=1e-10):
     """
     Conjugate Gradient Method for solving the linear system Ax = b using PyTorch.
 
@@ -30,8 +30,8 @@ def cg_torch(A, b, x0=None, max_iter=None, rtol=1e-10):
         raise ValueError("Matrix A must be symmetric.")
 
     n = b.size(0)
-    if max_iter is None:
-        max_iter = n
+    if maxiter is None:
+        maxiter = n
 
     # Initialize solution
     if x0 is None:
@@ -45,7 +45,7 @@ def cg_torch(A, b, x0=None, max_iter=None, rtol=1e-10):
 
     rs_old = torch.dot(r, r)
 
-    for i in range(max_iter):
+    for k in range(maxiter):
         Ap = torch.matmul(A, p)
         alpha = rs_old / torch.dot(p, Ap)
         x = x + alpha * p
@@ -59,7 +59,7 @@ def cg_torch(A, b, x0=None, max_iter=None, rtol=1e-10):
         p = r + (rs_new / rs_old) * p
         rs_old = rs_new
 
-    return x
+    return x, k+1
 
 
 # Example

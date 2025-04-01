@@ -73,7 +73,7 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         # Solve for x^(k+1)
         rhs = - (g + torch.matmul(A.T, u) + mu * torch.matmul(A.T, b - p_next))
         cg_start_time = time.time()
-        x_next, cg_steps = cg_torch(coeff_matrix, rhs, maxiter=n, x0=x, rtol=sigma*1e-3) 
+        x_next, cg_steps = cg_torch(coeff_matrix, rhs, maxiter=n//10, x0=x, rtol=1e-1) 
         # x_next = inv_matrix @ rhs; cg_steps = 0  # directly scompute the solution with the inverse matrix
         cg_end_time = time.time()
         time_cg += (cg_end_time - cg_start_time)

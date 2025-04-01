@@ -9,8 +9,8 @@ def cg(A, b, x0=None, maxiter=None, rtol=1e-6, atol=1e-12):
         A (np.ndarray): Symmetric positive definite matrix (n x n).
         b (np.ndarray): Right-hand side vector (n).
         x0 (np.ndarray, optional): Initial guess for the solution. Defaults to zero vector.
-        max_iter (int, optional): Maximum number of iterations. Defaults to n.
-        rtol (float, optional): Relative tolerance for convergence. Defaults to 1e-6.
+        maxiter (int, optional): Maximum number of iterations. Defaults to n.
+        rtol (float, optional): Relative tolerance for convergence (to the initial residual). Defaults to 1e-6.
         atol (float, optional): Absolute tolerance for convergence. Defaults to 1e-12.
 
     Returns:
@@ -22,8 +22,8 @@ def cg(A, b, x0=None, maxiter=None, rtol=1e-6, atol=1e-12):
     """
 
     # Ensure A is symmetric
-    if not np.allclose(A, A.T, atol=1e-8): 
-        raise ValueError("Matrix A is not symmetric")
+    # if not np.allclose(A, A.T, atol=1e-8): 
+    #     raise ValueError("Matrix A is not symmetric")
 
     n = b.size
     if maxiter is None:
@@ -38,9 +38,9 @@ def cg(A, b, x0=None, maxiter=None, rtol=1e-6, atol=1e-12):
     # Initial residual
     r = b - np.dot(A, x)
     p = r.copy()  # Initial search direction
-
     rs_old = np.dot(r, r)  # Dot product of residual
-
+    rs_init = rs_old
+    
     for k in range(maxiter):
         Ap = np.dot(A, p)  # Matrix-vector product
         alpha = rs_old / np.dot(p, Ap)  # Step size
@@ -48,7 +48,7 @@ def cg(A, b, x0=None, maxiter=None, rtol=1e-6, atol=1e-12):
         r = r - alpha * Ap  # Update residual
 
         rs_new = np.dot(r, r)  # New residual dot product
-        if np.linalg.norm(r) < rtol * np.linalg.norm(b) or np.linalg.norm(r) < atol:  # Check convergence
+        if rs_new < rtol * rs_init or rs_new < atol:  # Check convergence
             # print(f"Conjugate Gradient converged after {i+1} iterations.")
             break
 
@@ -67,8 +67,10 @@ if __name__ == "__main__":
     b = np.random.randn(n)
 
     # Solve using Conjugate Gradient
-    x = cg(A, b, maxiter=1000)
+    x, cg_steps = cg(A, b, maxiter=1000)
 
     # Verify the solution
     residual_norm = np.linalg.norm(np.dot(A, x) - b)
     print("Residual norm:", residual_norm)
+    print("CG steps:", cg_steps)
+    

@@ -1,6 +1,6 @@
 import torch
 
-def cg_torch(A, b, x0=None, maxiter=None, rtol=1e-10):
+def cg_torch(A, b, x0=None, maxiter=None, rtol=1e-6, atol=1e-12):
     """
     Conjugate Gradient Method for solving the linear system Ax = b using PyTorch.
 
@@ -8,8 +8,9 @@ def cg_torch(A, b, x0=None, maxiter=None, rtol=1e-10):
         A (torch.Tensor): Symmetric positive definite matrix (n x n).
         b (torch.Tensor): Right-hand side vector (n).
         x0 (torch.Tensor, optional): Initial guess for the solution. Defaults to zero vector.
-        max_iter (int, optional): Maximum number of iterations. Defaults to n.
-        rtol (float, optional): Relative tolerance for convergence. Defaults to 1e-10.
+        maxiter (int, optional): Maximum number of iterations. Defaults to n.
+        rtol (float, optional): Relative tolerance for convergence (to the initial residual). Defaults to 1e-6.
+        atol (float, optional): Absolute tolerance for convergence. Defaults to 1e-12.
 
     Returns:
         x (torch.Tensor): Solution to the linear system.
@@ -18,16 +19,9 @@ def cg_torch(A, b, x0=None, maxiter=None, rtol=1e-10):
         ValueError: If A is not symmetric.
     """
 
-    # Move inputs to the specified device
-    A = A
-    b = b
-    if x0 is not None:
-        x0 = x0
-
     # Ensure A is symmetric
-    A = 0.5 * (A + A.T)
-    if not torch.allclose(A, A.T):
-        raise ValueError("Matrix A must be symmetric.")
+    # if not torch.allclose(A, A.T):
+    #     raise ValueError("Matrix A must be symmetric.")
 
     n = b.size(0)
     if maxiter is None:
@@ -42,8 +36,8 @@ def cg_torch(A, b, x0=None, maxiter=None, rtol=1e-10):
     # Initial residual
     r = b - torch.matmul(A, x)
     p = r.clone()
-
     rs_old = torch.dot(r, r)
+    rs_init = rs_old
 
     for k in range(maxiter):
         Ap = torch.matmul(A, p)
@@ -52,7 +46,7 @@ def cg_torch(A, b, x0=None, maxiter=None, rtol=1e-10):
         r = r - alpha * Ap
 
         rs_new = torch.dot(r, r)
-        if torch.norm(r) < rtol * torch.norm(b):
+        if rs_new < rtol * rs_init or rs_new < atol:
             # print(f"Conjugate Gradient converged after {i+1} iterations.")
             break
 
@@ -75,8 +69,9 @@ if __name__ == "__main__":
     b = torch.rand(n)  # float64
 
     # Solve using Conjugate Gradient
-    x = cg_torch(A, b, max_iter=1000)
+    x, cg_steps = cg_torch(A, b, maxiter=1000)
 
     # Verify the solution
     residual_norm = torch.norm(A @ x - b).item()
     print("Residual norm:", residual_norm)
+    print("CG steps:", cg_steps)

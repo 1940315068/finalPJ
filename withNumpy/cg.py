@@ -1,12 +1,12 @@
 import numpy as np
 
 
-def cg(A, b, x0=None, maxiter=None, rtol=1e-6, atol=1e-12):
+def cg(matvec, b, x0=None, maxiter=None, rtol=1e-6, atol=1e-12):
     """
-    Conjugate Gradient Method for solving the linear system Ax = b using NumPy.
+    Conjugate Gradient Method for solving Ax = b, where A is implicitly defined by matvec(p) = A @ p.
 
     Parameters:
-        A (np.ndarray): Symmetric positive definite matrix (n x n).
+        matvec (callable): Function that computes A @ p for any vector p.
         b (np.ndarray): Right-hand side vector (n).
         x0 (np.ndarray, optional): Initial guess for the solution. Defaults to zero vector.
         maxiter (int, optional): Maximum number of iterations. Defaults to n.
@@ -16,15 +16,7 @@ def cg(A, b, x0=None, maxiter=None, rtol=1e-6, atol=1e-12):
     Returns:
         x (np.ndarray): Solution to the linear system.
         k (int): Number of iterations.
-
-    Raises:
-        ValueError: If A is not symmetric.
     """
-
-    # Ensure A is symmetric
-    # if not np.allclose(A, A.T, atol=1e-8): 
-    #     raise ValueError("Matrix A is not symmetric")
-
     n = b.size
     if maxiter is None:
         maxiter = n
@@ -36,20 +28,19 @@ def cg(A, b, x0=None, maxiter=None, rtol=1e-6, atol=1e-12):
         x = x0.copy()
 
     # Initial residual
-    r = b - np.dot(A, x)
+    r = b - matvec(x)  # Compute A @ x using matvec
     p = r.copy()  # Initial search direction
     rs_old = np.dot(r, r)  # Dot product of residual
     rs_init = rs_old
     
     for k in range(maxiter):
-        Ap = np.dot(A, p)  # Matrix-vector product
+        Ap = matvec(p)  # Compute A @ p using matvec (e.g., B @ (C @ (D @ p)))
         alpha = rs_old / np.dot(p, Ap)  # Step size
         x = x + alpha * p  # Update solution
         r = r - alpha * Ap  # Update residual
 
         rs_new = np.dot(r, r)  # New residual dot product
         if rs_new < rtol * rs_init or rs_new < atol:  # Check convergence
-            # print(f"Conjugate Gradient converged after {i+1} iterations.")
             break
 
         p = r + (rs_new / rs_old) * p  # Update search direction
@@ -63,14 +54,19 @@ if __name__ == "__main__":
     # Construct a symmetric positive definite matrix A and vector b
     n = 100
     P = np.random.randn(n, 5)  # Rank 5 matrix
-    A = np.dot(P, P.T) + 0.1 * np.eye(n)  # Ensure A is positive definite
+    # A = np.matmul(P, P.T) + 0.1 * np.eye(n)  # Ensure A is positive definite
     b = np.random.randn(n)
 
+    def matvec(p):
+        """Compute A @ p where A = P @ P.T + 0.1*I, without forming A explicitly"""
+        return P @ (P.T @ p) + 0.1 * p
+
     # Solve using Conjugate Gradient
-    x, cg_steps = cg(A, b, maxiter=1000)
+    x, cg_steps = cg(matvec, b, maxiter=1000)
 
     # Verify the solution
-    residual_norm = np.linalg.norm(np.dot(A, x) - b)
+    Ax = matvec(x)
+    residual_norm = np.linalg.norm(Ax - b)
     print("Residual norm:", residual_norm)
     print("CG steps:", cg_steps)
     

@@ -1,6 +1,6 @@
 import torch
 
-def cg_torch(A, b, x0=None, maxiter=None, rtol=1e-6, atol=1e-12):
+def cg_torch(matvec, b, x0=None, maxiter=None, rtol=1e-6, atol=1e-12):
     """
     Conjugate Gradient Method for solving the linear system Ax = b using PyTorch.
 
@@ -34,13 +34,13 @@ def cg_torch(A, b, x0=None, maxiter=None, rtol=1e-6, atol=1e-12):
         x = x0.clone()
 
     # Initial residual
-    r = b - torch.matmul(A, x)
+    r = b - matvec(x)
     p = r.clone()
     rs_old = torch.dot(r, r)
     rs_init = rs_old
 
     for k in range(maxiter):
-        Ap = torch.matmul(A, p)
+        Ap = matvec(p)
         alpha = rs_old / torch.dot(p, Ap)
         x = x + alpha * p
         r = r - alpha * Ap
@@ -61,17 +61,24 @@ if __name__ == "__main__":
     # Check GPU availability
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
+    torch.set_default_dtype(torch.float64)
+    torch.set_default_device(device)
 
     # Construct a symmetric positive definite matrix A and vector b
     n = 100
-    P = torch.rand(n, 5)  # rank 5 matrix, float64
-    A = torch.matmul(P, P.T) + 0.1 * torch.eye(n)  # Ensure A is positive definite, float64
-    b = torch.rand(n)  # float64
+    P = torch.rand(n, 5)  # rank 5 matrix
+    # A = torch.matmul(P, P.T) + 0.1 * torch.eye(n)  # Ensure A is positive definite
+    b = torch.rand(n) 
+
+    def matvec(p):
+        """Compute A @ p where A = P @ P.T + 0.1*I, without forming A explicitly"""
+        return P @ (P.T @ p) + 0.1 * p  # Equivalent to A @ p
 
     # Solve using Conjugate Gradient
-    x, cg_steps = cg_torch(A, b, maxiter=1000)
+    x, cg_steps = cg_torch(matvec, b, maxiter=1000)
 
     # Verify the solution
-    residual_norm = torch.norm(A @ x - b).item()
+    Ax = matvec(x)
+    residual_norm = torch.norm(Ax - b).item()
     print("Residual norm:", residual_norm)
     print("CG steps:", cg_steps)

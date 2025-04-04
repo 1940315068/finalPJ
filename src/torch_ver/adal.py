@@ -1,6 +1,6 @@
 import torch
-from functions import quadratic_form, exact_penalty_func
-from cg_torch import cg_torch
+from ..functions import *
+from ..cg import cg
 import time
 
 
@@ -56,7 +56,7 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     def matvec(p):
         return (H @ p + mu * (A.T @ (A @ p)))
     
-    for k in range(max_iter):
+    for k in range(1, max_iter+1):
         # Step 1: Solve the augmented Lagrangian subproblem for x^(k+1) and p^(k+1)
 
         # Solve for p^(k+1)
@@ -75,7 +75,7 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         rhs = - (g + torch.matmul(A.T, u) + mu * torch.matmul(A.T, b - p_next))
         cg_start_time = time.time()
         maxiter = max(10, n//10)
-        x_next, cg_steps = cg_torch(matvec, rhs, maxiter=maxiter, x0=x, rtol=1e-1) 
+        x_next, cg_steps = cg(matvec, rhs, maxiter=maxiter, x0=x, rtol=1e-1) 
         # x_next = inv_matrix @ rhs; cg_steps = 0  # directly scompute the solution with the inverse matrix
         cg_end_time = time.time()
         time_cg += (cg_end_time - cg_start_time)
@@ -91,8 +91,8 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         if norm_dx <= sigma and norm_residual <= sigma_prime:
             print(f"Iteration ends at {k} times.")
             # show the current function value with/without penalty
-            val = quadratic_form(H, g, x)
-            val_penalty = exact_penalty_func(H,g,x,A_eq,b_eq,A_ineq,b_ineq)
+            val = quadratic_objective(H, g, x)
+            val_penalty = penalized_quadratic_objective(H,g,x,A_eq,b_eq,A_ineq,b_ineq)
             print(f"Function value without penalty : {val}")
             print(f"Function value with penalty :    {val_penalty}")
             # show the current norm of dx and residual
@@ -108,8 +108,8 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         if k % 100 == 0:
             print(f"Iteration {k}:")
             # show the current function value with/without penalty
-            val = quadratic_form(H, g, x)
-            val_penalty = exact_penalty_func(H,g,x,A_eq,b_eq,A_ineq,b_ineq)
+            val = quadratic_objective(H, g, x)
+            val_penalty = penalized_quadratic_objective(H,g,x,A_eq,b_eq,A_ineq,b_ineq)
             print(f"Function value without penalty : {val}")
             print(f"Function value with penalty :    {val_penalty}")
             # show the current norm of dx and residual

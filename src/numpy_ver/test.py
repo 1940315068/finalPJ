@@ -1,7 +1,7 @@
 import numpy as np
-from adal import adal_solver
-from irwa import irwa_solver
-from functions import exact_penalty_func, quadratic_form
+from ..functions import *
+from .irwa import irwa_solver
+from .adal import adal_solver
 import time
 
 
@@ -56,10 +56,10 @@ running_time_adal = end_adal-start_adal
 
 
 # compute function value with/without penalty
-val_irwa_penalty = exact_penalty_func(H, g, x_irwa, A_eq, b_eq, A_ineq, b_ineq)
-val_adal_penalty = exact_penalty_func(H, g, x_adal, A_eq, b_eq, A_ineq, b_ineq)
-val_irwa_pri = quadratic_form(H, g, x_irwa)
-val_adal_pri = quadratic_form(H, g, x_adal)
+val_irwa_penalty = penalized_quadratic_objective(H, g, x_irwa, A_eq, b_eq, A_ineq, b_ineq)
+val_adal_penalty = penalized_quadratic_objective(H, g, x_adal, A_eq, b_eq, A_ineq, b_ineq)
+val_irwa_pri = quadratic_objective(H, g, x_irwa)
+val_adal_pri = quadratic_objective(H, g, x_adal)
 penalty_irwa = val_irwa_penalty - val_irwa_pri
 penalty_adal = val_adal_penalty - val_adal_pri
 

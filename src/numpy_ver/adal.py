@@ -1,6 +1,6 @@
 import numpy as np
-from functions import *
-from cg import cg
+from ..functions import *
+from ..cg import cg
 import time
 
 
@@ -37,7 +37,7 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     def matvec(p):
         return (H @ p + mu * (A.T @ (A @ p)))
     
-    for k in range(max_iter):
+    for k in range(1, max_iter+1):
         # Step 1: Solve the augmented Lagrangian subproblem for x^(k+1) and p^(k+1)
         
         # Solve for p^(k+1), set the values of p[i] explicitly
@@ -72,8 +72,8 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         if norm_dx <= sigma and norm_residual <= sigma_prime:
             print(f"Iteration ends at {k} times.")
             # show the current function value with/without penalty
-            val = quadratic_form(H, g, x)
-            val_penalty = exact_penalty_func(H,g,x,A_eq,b_eq,A_ineq,b_ineq)
+            val = quadratic_objective(H, g, x)
+            val_penalty = penalized_quadratic_objective(H,g,x,A_eq,b_eq,A_ineq,b_ineq)
             print(f"Function value without penalty : {val}")
             print(f"Function value with penalty :    {val_penalty}")
             # show the current norm of residual and dx
@@ -90,8 +90,8 @@ def adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         if k % 100 == 0:
             print(f"Iteration {k}:")
             # show the current function value with/without penalty
-            val = quadratic_form(H, g, x)
-            val_penalty = exact_penalty_func(H,g,x,A_eq,b_eq,A_ineq,b_ineq)
+            val = quadratic_objective(H, g, x)
+            val_penalty = penalized_quadratic_objective(H,g,x,A_eq,b_eq,A_ineq,b_ineq)
             print(f"Function value without penalty : {val}")
             print(f"Function value with penalty :    {val_penalty}")
             # show the current norm of dx and residual

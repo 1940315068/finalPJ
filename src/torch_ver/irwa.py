@@ -1,6 +1,6 @@
 import torch
-from functions import *
-from cg_torch import cg_torch
+from ..functions import *
+from ..cg import cg
 import time
 
 
@@ -35,7 +35,7 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
     time_cg = 0
 
     # Iteration
-    for k in range(max_iter):
+    for k in range(1, max_iter+1):
         # Step 1. Solve the reweighted subproblem for x^(k+1)
         w = compute_w(x, epsilon, A, b, m1, m2)
         v = compute_v(x, A, b, m1, m2)
@@ -49,7 +49,7 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         rhs = - (g + A.T @ (w * v))
         cg_start_time = time.time()
         maxiter = max(10, n//10)
-        x_next, cg_steps = cg_torch(matvec, rhs, maxiter=maxiter, x0=x, rtol=1e-1) 
+        x_next, cg_steps = cg(matvec, rhs, maxiter=maxiter, x0=x, rtol=1e-1) 
         cg_end_time = time.time()
         time_cg += (cg_end_time - cg_start_time)
         # print(f"CG steps: {cg_steps:03d},  max_w = {max(w):.2e},  min_w = {min(w):.2e},  condition number of ATWA: {np.linalg.cond(coeff_matrix):.2e}")
@@ -76,8 +76,8 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         if norm_dx <= sigma:  # and norm_eps <= sigma_prime:
             print(f"Iteration ends at {k} times.")
             # Show the current function value with/without penalty
-            val = quadratic_form(H, g, x)
-            val_penalty = exact_penalty_func(H, g, x, A_eq, b_eq, A_ineq, b_ineq)
+            val = quadratic_objective(H, g, x)
+            val_penalty = penalized_quadratic_objective(H, g, x, A_eq, b_eq, A_ineq, b_ineq)
             print(f"Function value without penalty : {val}")
             print(f"Function value with penalty :    {val_penalty}")
             # Show the current norm of dx and epsilon
@@ -92,8 +92,8 @@ def irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, x0=None, max_iter=1000):
         if k % 100 == 0:
             print(f"Iteration {k}:")
             # Show the current function value with/without penalty
-            val = quadratic_form(H, g, x)
-            val_penalty = exact_penalty_func(H, g, x, A_eq, b_eq, A_ineq, b_ineq)
+            val = quadratic_objective(H, g, x)
+            val_penalty = penalized_quadratic_objective(H, g, x, A_eq, b_eq, A_ineq, b_ineq)
             print(f"Function value without penalty : {val}")
             print(f"Function value with penalty :    {val_penalty}")
             # Show the current norm of dx and epsilon

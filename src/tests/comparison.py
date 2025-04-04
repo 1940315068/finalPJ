@@ -1,10 +1,9 @@
 import numpy as np
-from adal import adal_solver
-from irwa import irwa_solver
-from functions import exact_penalty_func, quadratic_form
 import osqp
 from scipy.sparse import csc_matrix
 import time
+from ..numpy_ver import irwa, adal
+from ..functions import penalized_quadratic_objective, quadratic_objective
 
 
 scale = 1
@@ -46,13 +45,13 @@ g = np.random.rand(n)
 
 # start IRWA
 start_irwa = time.time()
-x_irwa, k_irwa, n_cg_steps_irwa, time_cg_irwa = irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
+x_irwa, k_irwa, n_cg_steps_irwa, time_cg_irwa = irwa.irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
 end_irwa = time.time()
 running_time_irwa = end_irwa-start_irwa
 
 # start ADAL
 start_adal = time.time()
-x_adal, k_adal, n_cg_steps_adal, time_cg_adal = adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
+x_adal, k_adal, n_cg_steps_adal, time_cg_adal = adal.adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
 end_adal = time.time()
 running_time_adal = end_adal-start_adal
 
@@ -86,12 +85,12 @@ x_osqp = result_osqp.x
 k_osqp = result_osqp.info.iter
 
 # compute function value with/without penalty
-val_irwa_penalty = exact_penalty_func(H, g, x_irwa, A_eq, b_eq, A_ineq, b_ineq)
-val_adal_penalty = exact_penalty_func(H, g, x_adal, A_eq, b_eq, A_ineq, b_ineq)
-val_osqp_penalty = exact_penalty_func(H, g, x_osqp, A_eq, b_eq, A_ineq, b_ineq)
-val_irwa_pri = quadratic_form(H, g, x_irwa)
-val_adal_pri = quadratic_form(H, g, x_adal)
-val_osqp_pri = quadratic_form(H, g, x_osqp)
+val_irwa_penalty = penalized_quadratic_objective(H, g, x_irwa, A_eq, b_eq, A_ineq, b_ineq)
+val_adal_penalty = penalized_quadratic_objective(H, g, x_adal, A_eq, b_eq, A_ineq, b_ineq)
+val_osqp_penalty = penalized_quadratic_objective(H, g, x_osqp, A_eq, b_eq, A_ineq, b_ineq)
+val_irwa_pri = quadratic_objective(H, g, x_irwa)
+val_adal_pri = quadratic_objective(H, g, x_adal)
+val_osqp_pri = quadratic_objective(H, g, x_osqp)
 penalty_irwa = val_irwa_penalty - val_irwa_pri
 penalty_adal = val_adal_penalty - val_adal_pri
 penalty_osqp = val_osqp_penalty - val_osqp_pri

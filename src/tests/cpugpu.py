@@ -1,3 +1,5 @@
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 import numpy as np
 import torch
 import time
@@ -44,25 +46,29 @@ def run_experiment(n, m1, m2, num_trials=5, device='cuda'):
         
         # Run CPU solvers
         start = time.time()
-        _, k_irwa, n_cg_irwa, _ = irwa_cpu_solver(H_np, g_np, A_eq_np, b_eq_np, A_ineq_np, b_ineq_np)
+        _, _, n_cg_irwa_cpu, cg_time_irwa_cpu = irwa_cpu_solver(H_np, g_np, A_eq_np, b_eq_np, A_ineq_np, b_ineq_np)
         metrics['IRWA_CPU']['time'].append(time.time() - start)
-        metrics['IRWA_CPU']['cg_steps'].append(n_cg_irwa)
+        metrics['IRWA_CPU']['cg_steps'].append(n_cg_irwa_cpu)
+        metrics['IRWA_CPU']['cg_time'].append(cg_time_irwa_cpu)  # Store CG time
         
         start = time.time()
-        _, k_adal, n_cg_adal, _ = adal_cpu_solver(H_np, g_np, A_eq_np, b_eq_np, A_ineq_np, b_ineq_np)
+        _, _, n_cg_adal_cpu, cg_time_adal_cpu = adal_cpu_solver(H_np, g_np, A_eq_np, b_eq_np, A_ineq_np, b_ineq_np)
         metrics['ADAL_CPU']['time'].append(time.time() - start)
-        metrics['ADAL_CPU']['cg_steps'].append(n_cg_adal)
+        metrics['ADAL_CPU']['cg_steps'].append(n_cg_adal_cpu)
+        metrics['ADAL_CPU']['cg_time'].append(cg_time_adal_cpu)  # Store CG time
         
         # Run GPU solvers
         start = time.time()
-        _, k_irwa, n_cg_irwa, _ = irwa_gpu_solver(H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch)
+        _, _, n_cg_irwa_gpu, cg_time_irwa_gpu = irwa_gpu_solver(H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch)
         metrics['IRWA_GPU']['time'].append(time.time() - start)
-        metrics['IRWA_GPU']['cg_steps'].append(n_cg_irwa)
+        metrics['IRWA_GPU']['cg_steps'].append(n_cg_irwa_gpu)
+        metrics['IRWA_GPU']['cg_time'].append(cg_time_irwa_gpu)  # Store CG time
         
         start = time.time()
-        _, k_adal, n_cg_adal, _ = adal_gpu_solver(H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch)
+        _, _, n_cg_adal_gpu, cg_time_adal_gpu = adal_gpu_solver(H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch)
         metrics['ADAL_GPU']['time'].append(time.time() - start)
-        metrics['ADAL_GPU']['cg_steps'].append(n_cg_adal)
+        metrics['ADAL_GPU']['cg_steps'].append(n_cg_adal_gpu)
+        metrics['ADAL_GPU']['cg_time'].append(cg_time_adal_gpu)  # Store CG time
     
     return metrics
 
@@ -73,6 +79,7 @@ def analyze_metrics(metrics):
     for solver in metrics:
         times = metrics[solver]['time']
         cg_steps = metrics[solver]['cg_steps']
+        cg_times = metrics[solver]['cg_time']  # Add this line
         
         results[solver] = {
             'avg_time': np.mean(times),
@@ -80,35 +87,43 @@ def analyze_metrics(metrics):
             'avg_cg_steps': np.mean(cg_steps),
             'min_cg_steps': min(cg_steps),
             'max_cg_steps': max(cg_steps),
-            'std_cg_steps': np.std(cg_steps)
+            'std_cg_steps': np.std(cg_steps),
+            'avg_cg_time': np.mean(cg_times),
+            'std_cg_time': np.std(cg_times)
         }
+        
     return results
 
 
 def plot_results(results, problem_size):
-    """Visualize the performance comparison"""
+    """Visualize performance: CG Time as part of Total Time, and CG Step counts"""
     solvers = list(results.keys())
-    
-    # Time comparison
+
+    # Extract data
+    avg_total_times = [results[s]['avg_time'] for s in solvers]
+    avg_cg_times = [results[s]['avg_cg_time'] for s in solvers]
+    non_cg_times = [total - cg for total, cg in zip(avg_total_times, avg_cg_times)]
+
+    avg_cg_steps = [results[s]['avg_cg_steps'] for s in solvers]
+    min_cg_steps = [results[s]['min_cg_steps'] for s in solvers]
+    max_cg_steps = [results[s]['max_cg_steps'] for s in solvers]
+
+    # Set up the figure
     plt.figure(figsize=(12, 5))
+    # --- Subplot 1: Total Time Breakdown ---
     plt.subplot(1, 2, 1)
-    avg_times = [results[s]['avg_time'] for s in solvers]
-    std_times = [results[s]['std_time'] for s in solvers]
-    plt.bar(solvers, avg_times, yerr=std_times, capsize=5)
-    plt.ylabel('Average Time (s)')
-    plt.title(f'Time Comparison\nProblem Size: {problem_size}')
-    
-    # CG Steps comparison
+    plt.bar(solvers, avg_cg_times, label='CG Time', color='skyblue')
+    plt.bar(solvers, non_cg_times, bottom=avg_cg_times, label='Other Time', color='orange')
+    plt.ylabel('Average Total Time (s)')
+    plt.title(f'Total Time Breakdown\nProblem Size: {problem_size}')
+    plt.legend()
+
+    # --- Subplot 2: CG Steps ---
     plt.subplot(1, 2, 2)
-    avg_cg = [results[s]['avg_cg_steps'] for s in solvers]
-    min_cg = [results[s]['min_cg_steps'] for s in solvers]
-    max_cg = [results[s]['max_cg_steps'] for s in solvers]
-    
     for i, solver in enumerate(solvers):
-        plt.errorbar(i, avg_cg[i], 
-                    yerr=[[avg_cg[i] - min_cg[i]], [max_cg[i] - avg_cg[i]]],
-                    fmt='o', capsize=5, label=solver)
-    
+        plt.errorbar(i, avg_cg_steps[i],
+                     yerr=[[avg_cg_steps[i] - min_cg_steps[i]], [max_cg_steps[i] - avg_cg_steps[i]]],
+                     fmt='o', capsize=5, label=solver)
     plt.xticks(range(len(solvers)), solvers)
     plt.ylabel('CG Steps')
     plt.title(f'CG Steps Comparison\nProblem Size: {problem_size}')

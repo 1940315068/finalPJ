@@ -1,118 +1,163 @@
 import numpy as np
 import osqp
+import cvxpy as cp
+from cvxopt import matrix, solvers
+from scipy.optimize import minimize
 from scipy.sparse import csc_matrix
 import time
 from ..numpy_ver import irwa, adal
 from ..functions import penalized_quadratic_objective, quadratic_objective
+from .data_gen import generate_optimization_data
 
 
-scale = 1
-n = 1000*scale  # number of variables
-m1 = 300*scale  # number of equality constraints
-m2 = 300*scale  # number of inequality constraints
+def solve_with_irwa(H, g, A_eq, b_eq, A_ineq, b_ineq):
+    start = time.time()
+    x, iters, _, _ = irwa.irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
+    end = time.time()
+    running_time = end - start
+    return x, iters, running_time
+    
 
-# equality constraints 
-A_eq = np.random.rand(m1, n)
-b_eq = np.zeros(m1)
-
-# inequality constraints
-A_ineq = np.random.rand(m2, n)
-b_ineq = np.random.rand(m2)
-
-# Add infeasible constraints of equality: Ax+b=0, Ax-b=0
-m1_infeasible = 0
-m1 += 2*m1_infeasible
-A_eq_infeasible = np.random.rand(m1_infeasible, n)
-A_eq = np.vstack([A_eq, A_eq_infeasible, A_eq_infeasible])
-b_eq_infeasible = np.random.rand(m1_infeasible)
-b_eq = np.hstack([b_eq, b_eq_infeasible, -b_eq_infeasible])
-
-# Add infeasible constraints of inequality: Ax+1<=0, -Ax<=0
-m2_infeasible = 0
-m2 += 2*m2_infeasible
-A_ineq_infeasible = np.random.rand(m2_infeasible, n)
-A_ineq = np.vstack([A_ineq, A_ineq_infeasible, -A_ineq_infeasible])
-b_ones_infeasible = np.ones(m2_infeasible)
-b_zeros_infeasible = np.zeros(m2_infeasible)
-b_ineq = np.hstack([b_ineq, b_ones_infeasible, b_zeros_infeasible])
+def solve_with_adal(H, g, A_eq, b_eq, A_ineq, b_ineq):
+    start = time.time()
+    x, iters, _, _ = adal.adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
+    end = time.time()
+    running_time = end - start
+    return x, iters, running_time
 
 
-# define the phi(x) with H and g
-P = np.random.rand(n, 5)
-H = np.dot(P, P.T) + 0.1 * np.eye(n)
-g = np.random.rand(n)
+def solve_with_osqp(H, g, A_eq, b_eq, A_ineq, b_ineq):
+    P = csc_matrix(H)
+    A = csc_matrix(np.vstack([A_eq, A_ineq]))
+    l = np.hstack([-b_eq, -np.inf * np.ones(len(b_ineq))])
+    u = np.hstack([-b_eq, -b_ineq])
+    start = time.time()
+    prob_osqp = osqp.OSQP()
+    prob_osqp.setup(P=P, q=g, A=A, l=l, u=u, verbose=False)
+    result_osqp = prob_osqp.solve()
+    end = time.time()
+    running_time = end - start
+    x = result_osqp.x
+    iters = result_osqp.info.iter
+    return x, iters, running_time
 
 
-# start IRWA
-start_irwa = time.time()
-x_irwa, k_irwa, n_cg_steps_irwa, time_cg_irwa = irwa.irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
-end_irwa = time.time()
-running_time_irwa = end_irwa-start_irwa
+def solve_with_cvxpy(H, g, A_eq, b_eq, A_ineq, b_ineq):
+    n = H.shape[0]
+    x_cvxpy = cp.Variable(n)
+    obj_cvxpy = cp.Minimize(0.5 * cp.quad_form(x_cvxpy, H) + g.T @ x_cvxpy)
+    constraints_cvxpy = [A_eq @ x_cvxpy == -b_eq, A_ineq @ x_cvxpy <= -b_ineq]
+    start = time.time()
+    prob_cvxpy = cp.Problem(obj_cvxpy, constraints_cvxpy)
+    prob_cvxpy.solve() 
+    end = time.time()
+    running_time = end - start
+    x = x_cvxpy.value
+    iters = prob_cvxpy.solver_stats.num_iters
+    return x, iters, running_time
 
-# start ADAL
-start_adal = time.time()
-x_adal, k_adal, n_cg_steps_adal, time_cg_adal = adal.adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
-end_adal = time.time()
-running_time_adal = end_adal-start_adal
+
+def solve_with_cvxopt(H, g, A_eq, b_eq, A_ineq, b_ineq):
+    solvers.options['show_progress'] = False
+    P = matrix(H)
+    q = matrix(g)
+    G = matrix(A_ineq)
+    h = matrix(-b_ineq)
+    A = matrix(A_eq)
+    b = matrix(-b_eq)
+    start_time = time.time()
+    sol = solvers.qp(P, q, G, h, A, b)
+    end_time = time.time()
+    x = np.array(sol['x']).flatten()
+    running_time = end_time - start_time
+    iters = sol['iterations'] if 'iterations' in sol else 0
+    return x, iters, running_time
 
 
-# Compare with osqp, l <= Ax <= u
-m = m1+m2
-u = np.zeros(m)
-l = np.zeros(m)
-A = csc_matrix(np.vstack([A_eq, A_ineq]))
-b = np.hstack([b_eq, b_ineq])
-P = csc_matrix(H)
-q = g
+def solve_with_scipy(H, g, A_eq, b_eq, A_ineq, b_ineq):
+    n = H.shape[0]
+    x0 = np.zeros(n)
+    constraints_scipy = [
+            {'type': 'eq', 'fun': lambda x: A_eq @ x + b_eq},
+            {'type': 'ineq', 'fun': lambda x: -A_ineq @ x - b_ineq}
+        ]
+    start = time.time()
+    result_scipy = minimize(lambda x: quadratic_objective(H,g,x), x0, method='SLSQP', constraints=constraints_scipy)
+    end = time.time()
+    running_time = end - start
+    x = result_scipy.x
+    iters = result_scipy.nit
+    return x, iters, running_time
 
-# equality constraints: l = u = -b
-for i in range(m1):
-    l[i] = -b[i]
-    u[i] = -b[i]
-# inequality constraints, l = -inf, u = -b
-for i in range(m1,m):
-    l[i] = -np.inf
-    u[i] = -b[i]
 
-# start OSQP
-start_osqp = time.time()
-prob = osqp.OSQP()
-prob.setup(P=P, q=q, A=A, l=l, u=u)
-result_osqp = prob.solve()
-end_osqp = time.time()
-running_time_osqp = end_osqp-start_osqp
-x_osqp = result_osqp.x
-k_osqp = result_osqp.info.iter
+if __name__ == "__main__":
+    scale = 1
+    n = 1000*scale  # number of variables
+    m1 = 300*scale  # number of equality constraints
+    m2 = 300*scale  # number of inequality constraints
 
-# compute function value with/without penalty
-val_irwa_penalty = penalized_quadratic_objective(H, g, x_irwa, A_eq, b_eq, A_ineq, b_ineq)
-val_adal_penalty = penalized_quadratic_objective(H, g, x_adal, A_eq, b_eq, A_ineq, b_ineq)
-val_osqp_penalty = penalized_quadratic_objective(H, g, x_osqp, A_eq, b_eq, A_ineq, b_ineq)
-val_irwa_pri = quadratic_objective(H, g, x_irwa)
-val_adal_pri = quadratic_objective(H, g, x_adal)
-val_osqp_pri = quadratic_objective(H, g, x_osqp)
-penalty_irwa = val_irwa_penalty - val_irwa_pri
-penalty_adal = val_adal_penalty - val_adal_pri
-penalty_osqp = val_osqp_penalty - val_osqp_pri
+    # Generate problem data
+    data = generate_optimization_data(n=n, m1=m1, m2=m2, numpy_output=True, torch_output=False)
+            
+    # CPU (NumPy) data
+    H, g = data['numpy']['H'], data['numpy']['g']
+    A_eq, b_eq = data['numpy']['A_eq'], data['numpy']['b_eq']
+    A_ineq, b_ineq = data['numpy']['A_ineq'], data['numpy']['b_ineq']
 
-# show the comparison
-print("------------------------------------------------------------")
-print(f"IRWA function value with penalty: {val_irwa_penalty:.6f}")
-print(f"ADAL function value with penalty: {val_adal_penalty:.6f}")
-print(f"OSQP function value with penalty: {val_osqp_penalty:.6f}")
-print("------------------------------------------------------------")
-print(f"IRWA function value without penalty: {val_irwa_pri:.6f}")
-print(f"ADAL function value without penalty: {val_adal_pri:.6f}")
-print(f"OSQP function value without penalty: {val_osqp_pri:.6f}")
-print("------------------------------------------------------------")
-print(f"IRWA penalty: {penalty_irwa:.3e}")
-print(f"ADAL penalty: {penalty_adal:.3e}")
-print(f"OSQP penalty: {penalty_osqp:.3e}")
-print("------------------------------------------------------------")
-print(f"IRWA running time: {running_time_irwa:.3f}s, iteration: {k_irwa}")
-print(f"ADAL running time: {running_time_adal:.3f}s, iteration: {k_adal}")
-print(f"OSQP running time: {running_time_osqp:.3f}s, iteration: {k_osqp}")
-print("------------------------------------------------------------")
-print(f"IRWA CG steps: {n_cg_steps_irwa}, CG total computation time: {time_cg_irwa:.4f}s")
-print(f"ADAL CG steps: {n_cg_steps_adal}, CG total computation time: {time_cg_adal:.4f}s")
-print("------------------------------------------------------------")
+
+    x_irwa, iters_irwa, time_irwa = solve_with_irwa(H, g, A_eq, b_eq, A_ineq, b_ineq)
+    x_adal, iters_adal, time_adal = solve_with_adal(H, g, A_eq, b_eq, A_ineq, b_ineq)
+    x_osqp, iters_osqp, time_osqp = solve_with_osqp(H, g, A_eq, b_eq, A_ineq, b_ineq)
+    x_cvxpy, iters_cvxpy, time_cvxpy = solve_with_cvxpy(H, g, A_eq, b_eq, A_ineq, b_ineq)
+    x_cvxopt, iters_cvxopt, time_cvxopt = solve_with_cvxopt(H, g, A_eq, b_eq, A_ineq, b_ineq)
+    x_scipy, iters_scipy, time_scipy = solve_with_scipy(H, g, A_eq, b_eq, A_ineq, b_ineq)
+
+    # compute function value with/without penalty
+    val_penalty_irwa = penalized_quadratic_objective(H, g, x_irwa, A_eq, b_eq, A_ineq, b_ineq)
+    val_penalty_adal = penalized_quadratic_objective(H, g, x_adal, A_eq, b_eq, A_ineq, b_ineq)
+    val_penalty_osqp = penalized_quadratic_objective(H, g, x_osqp, A_eq, b_eq, A_ineq, b_ineq)
+    val_penalty_cvxpy = penalized_quadratic_objective(H, g, x_cvxpy, A_eq, b_eq, A_ineq, b_ineq)
+    val_penalty_cvxopt = penalized_quadratic_objective(H, g, x_cvxopt, A_eq, b_eq, A_ineq, b_ineq)
+    val_penalty_scipy = penalized_quadratic_objective(H, g, x_scipy, A_eq, b_eq, A_ineq, b_ineq)
+
+    val_primal_irwa = quadratic_objective(H, g, x_irwa)
+    val_primal_adal = quadratic_objective(H, g, x_adal)
+    val_primal_osqp = quadratic_objective(H, g, x_osqp)
+    val_primal_cvxpy = quadratic_objective(H, g, x_cvxpy)
+    val_primal_cvxopt = quadratic_objective(H, g, x_cvxopt)
+    val_primal_scipy = quadratic_objective(H, g, x_scipy)
+
+    penalty_irwa = val_penalty_irwa - val_primal_irwa
+    penalty_adal = val_penalty_adal - val_primal_adal
+    penalty_osqp = val_penalty_osqp - val_primal_osqp
+    penalty_cvxpy = val_penalty_cvxpy - val_primal_cvxpy
+    penalty_cvxopt = val_penalty_cvxopt - val_primal_cvxopt
+    penalty_scipy = val_penalty_scipy - val_primal_scipy
+
+
+    # show the comparison
+    print("------------------------------------------------------------")
+    # Prepare all data in lists
+    solvers = ["IRWA", "ADAL", "OSQP", "CVXPY", "CVXOPT", "SciPy"]
+    val_penalties = [val_penalty_irwa, val_penalty_adal, val_penalty_osqp,
+                     val_penalty_cvxpy,  val_penalty_cvxopt, val_penalty_scipy]
+    val_primaries = [val_primal_irwa, val_primal_adal, val_primal_osqp,
+                     val_primal_cvxpy, val_primal_cvxopt, val_primal_scipy]
+    penalties = [penalty_irwa, penalty_adal, penalty_osqp,
+                 penalty_cvxpy, penalty_cvxopt, penalty_scipy]
+    iterations = [iters_irwa, iters_adal, iters_osqp, iters_cvxpy, iters_cvxopt, iters_scipy]
+    times = [time_irwa, time_adal, time_osqp, time_cvxpy, time_cvxopt, time_scipy]
+
+    # Print header
+    print("\nSOLVER COMPARISON")
+    print(f"{'Solver':<8} {'Val(penalty)':>14} {'Val(primal)':>14} {'Penalty':>12} {'Iters':>8} {'Time(s)':>10}")
+    print("-"*70)
+
+    # Print each solver's data
+    for i in range(len(solvers)):
+        print(f"{solvers[i]:<8} {val_penalties[i]:14.6f} {val_primaries[i]:14.6f} "
+            f"{penalties[i]:12.3e} {iterations[i]:8} {times[i]:10.4f}")
+
+    # Find best solver
+    # best_idx = min(range(len(val_penalties)), itersey=lambda i: val_penalties[i])
+    # print(f"\nBest solver: {solvers[best_idx]} (value: {val_penalties[best_idx]:.6f})")

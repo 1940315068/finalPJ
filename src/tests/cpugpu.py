@@ -5,10 +5,8 @@ import torch
 import time
 import matplotlib.pyplot as plt
 from collections import defaultdict
-from ..numpy_ver.irwa import irwa_solver as irwa_cpu_solver
-from ..numpy_ver.adal import adal_solver as adal_cpu_solver
-from ..torch_ver.irwa import irwa_solver as irwa_gpu_solver
-from ..torch_ver.adal import adal_solver as adal_gpu_solver
+from ..algorithms.irwa import irwa_solver
+from ..algorithms.adal import adal_solver
 from ..functions import penalized_quadratic_objective, quadratic_objective
 from .data_gen import generate_optimization_data
 
@@ -46,26 +44,26 @@ def run_experiment(n, m1, m2, num_trials=5, device='cuda'):
         
         # Run CPU solvers
         start = time.time()
-        _, _, n_cg_irwa_cpu, cg_time_irwa_cpu = irwa_cpu_solver(H_np, g_np, A_eq_np, b_eq_np, A_ineq_np, b_ineq_np)
+        _, _, n_cg_irwa_cpu, cg_time_irwa_cpu = irwa_solver(H_np, g_np, A_eq_np, b_eq_np, A_ineq_np, b_ineq_np)
         metrics['IRWA_CPU']['time'].append(time.time() - start)
         metrics['IRWA_CPU']['cg_steps'].append(n_cg_irwa_cpu)
         metrics['IRWA_CPU']['cg_time'].append(cg_time_irwa_cpu)  # Store CG time
         
         start = time.time()
-        _, _, n_cg_adal_cpu, cg_time_adal_cpu = adal_cpu_solver(H_np, g_np, A_eq_np, b_eq_np, A_ineq_np, b_ineq_np)
+        _, _, n_cg_adal_cpu, cg_time_adal_cpu = adal_solver(H_np, g_np, A_eq_np, b_eq_np, A_ineq_np, b_ineq_np)
         metrics['ADAL_CPU']['time'].append(time.time() - start)
         metrics['ADAL_CPU']['cg_steps'].append(n_cg_adal_cpu)
         metrics['ADAL_CPU']['cg_time'].append(cg_time_adal_cpu)  # Store CG time
         
         # Run GPU solvers
         start = time.time()
-        _, _, n_cg_irwa_gpu, cg_time_irwa_gpu = irwa_gpu_solver(H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch)
+        _, _, n_cg_irwa_gpu, cg_time_irwa_gpu = irwa_solver(H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch)
         metrics['IRWA_GPU']['time'].append(time.time() - start)
         metrics['IRWA_GPU']['cg_steps'].append(n_cg_irwa_gpu)
         metrics['IRWA_GPU']['cg_time'].append(cg_time_irwa_gpu)  # Store CG time
         
         start = time.time()
-        _, _, n_cg_adal_gpu, cg_time_adal_gpu = adal_gpu_solver(H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch)
+        _, _, n_cg_adal_gpu, cg_time_adal_gpu = adal_solver(H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch)
         metrics['ADAL_GPU']['time'].append(time.time() - start)
         metrics['ADAL_GPU']['cg_steps'].append(n_cg_adal_gpu)
         metrics['ADAL_GPU']['cg_time'].append(cg_time_adal_gpu)  # Store CG time

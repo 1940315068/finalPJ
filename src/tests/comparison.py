@@ -5,7 +5,7 @@ from cvxopt import matrix, solvers
 from scipy.optimize import minimize
 from scipy.sparse import csc_matrix
 import time
-from ..numpy_ver import irwa, adal
+from ..algorithms import irwa, adal
 from ..functions import penalized_quadratic_objective, quadratic_objective
 from .data_gen import generate_optimization_data
 

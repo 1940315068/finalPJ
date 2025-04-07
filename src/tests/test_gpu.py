@@ -1,7 +1,7 @@
 import torch
 from ..functions import *
-from .irwa import irwa_solver
-from .adal import adal_solver
+from ..algorithms.irwa import irwa_solver
+from ..algorithms.adal import adal_solver
 import time
 
 

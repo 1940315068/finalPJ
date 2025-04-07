@@ -1,11 +1,11 @@
 import numpy as np
 from ..functions import *
-from .irwa import irwa_solver
-from .adal import adal_solver
+from ..algorithms.irwa import irwa_solver
+from ..algorithms.adal import adal_solver
 import time
 
 
-scale = 5
+scale = 1
 n = 1000*scale  # number of variables
 m1 = 300*scale  # number of equality constraints
 m2 = 300*scale  # number of inequality constraints

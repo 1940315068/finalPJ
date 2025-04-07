@@ -28,22 +28,21 @@ def cg(
         k (int): Number of iterations.
 
     Raises:
-        TypeError: If input types are neither NumPy arrays nor PyTorch tensors.
-        ValueError: If input types are mixed (e.g., NumPy array with PyTorch tensor).
+        TypeError: If input types are neither NumPy arrays nor PyTorch tensors, or input types are mixed.
     """
     # Check input type validity
     is_numpy = isinstance(b, np.ndarray)
     is_torch = isinstance(b, torch.Tensor)
     
     if not (is_numpy or is_torch):
-        raise TypeError("Input 'b' must be either a NumPy array or PyTorch tensor")
+        raise TypeError(f"Input 'b' must be either a NumPy array or PyTorch tensor. Got type:{type(b)}.")
     
     # Check for type consistency between b and x0
     if x0 is not None:
         x0_is_numpy = isinstance(x0, np.ndarray)
         x0_is_torch = isinstance(x0, torch.Tensor)
         if (is_numpy and x0_is_torch) or (is_torch and x0_is_numpy):
-            raise ValueError("Mixed input types: {input_types}. Use either all torch or all numpy.")
+            raise TypeError(f"Mixed input types: b is {type(b)}, x0 is {type(x0)}. Use either both torch or both numpy.")
     
     # Select appropriate operations based on input type
     if is_torch:

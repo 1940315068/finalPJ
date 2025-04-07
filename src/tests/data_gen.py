@@ -10,27 +10,19 @@ def generate_optimization_data(n=1000, m1=300, m2=300,
     
     The problem is of the form:
     min (1/2)x^T H x + g^T x
-    s.t. A_eq x = b_eq
-         A_ineq x <= b_ineq
+    s.t. A_eq x + b_eq = 0
+         A_ineq x + b_ineq <= 0
     
     Parameters:
     -----------
-    n : int
-        Number of variables (default=1000)
-    m1 : int
-        Number of equality constraints (default=300)
-    m2 : int
-        Number of inequality constraints (default=300)
-    m1_infeasible : int
-        Number of infeasible equality constraints to add (default=0)
-    m2_infeasible : int
-        Number of infeasible inequality constraints to add (default=0)
-    numpy_output : bool
-        Whether to return NumPy arrays (default=True)
-    torch_output : bool
-        Whether to return PyTorch tensors (default=True)
-    seed : int or None
-        Random seed for reproducibility (default=None)
+    n (int): Number of variables (default=1000)
+    m1 (int): Number of equality constraints (default=300)
+    m2 (int): Number of inequality constraints (default=300)
+    m1_infeasible (int): Number of infeasible equality constraints to add (default=0)
+    m2_infeasible (int): Number of infeasible inequality constraints to add (default=0)
+    numpy_output (bool): Whether to return NumPy arrays (default=True)
+    torch_output (bool): Whether to return PyTorch tensors (default=True)
+    seed (int, optional): Random seed for reproducibility (default=None)
     
     Returns:
     --------
@@ -45,10 +37,9 @@ def generate_optimization_data(n=1000, m1=300, m2=300,
         - 'b_eq': Equality constraint vector (m1,)
         - 'A_ineq': Inequality constraint matrix (m2 x n)
         - 'b_ineq': Inequality constraint vector (m2,)
-        - 'n': Number of variables
-        - 'm1': Final number of equality constraints (including infeasible ones)
-        - 'm2': Final number of inequality constraints (including infeasible ones)
     """
+    torch.set_default_dtype(torch.float64)
+    
     if seed is not None:
         np.random.seed(seed)
         torch.manual_seed(seed)
@@ -94,23 +85,17 @@ def generate_optimization_data(n=1000, m1=300, m2=300,
             'A_eq': A_eq,
             'b_eq': b_eq,
             'A_ineq': A_ineq,
-            'b_ineq': b_ineq,
-            'n': n,
-            'm1': m1,
-            'm2': m2
+            'b_ineq': b_ineq
         }
     
     if torch_output:
         output['torch'] = {
-            'H': torch.from_numpy(H).to(torch.float64),
-            'g': torch.from_numpy(g).to(torch.float64),
-            'A_eq': torch.from_numpy(A_eq).to(torch.float64),
-            'b_eq': torch.from_numpy(b_eq).to(torch.float64),
-            'A_ineq': torch.from_numpy(A_ineq).to(torch.float64),
-            'b_ineq': torch.from_numpy(b_ineq).to(torch.float64),
-            'n': n,
-            'm1': m1,
-            'm2': m2
+            'H': torch.from_numpy(H).clone(),
+            'g': torch.from_numpy(g).clone(),
+            'A_eq': torch.from_numpy(A_eq).clone(),
+            'b_eq': torch.from_numpy(b_eq).clone(),
+            'A_ineq': torch.from_numpy(A_ineq).clone(),
+            'b_ineq': torch.from_numpy(b_ineq).clone()
         }
     
     return output

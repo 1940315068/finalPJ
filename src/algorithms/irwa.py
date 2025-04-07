@@ -14,7 +14,8 @@ def irwa_solver(
     A_ineq: Union[np.ndarray, torch.Tensor],
     b_ineq: Union[np.ndarray, torch.Tensor],
     x0: Optional[Union[np.ndarray, torch.Tensor]] = None,
-    max_iter: int = 1000
+    max_iter: int = 1000,
+    verbose: bool = True
 ) -> Tuple[Union[np.ndarray, torch.Tensor], int, int, float]:
     """
     Iteratively Reweighted Algorithm (IRWA) solver for constrained quadratic programming.
@@ -32,7 +33,8 @@ def irwa_solver(
         A_ineq (np.ndarray or torch.Tensor): Inequality constraint matrix.
         b_ineq (np.ndarray or torch.Tensor): Inequality constraint vector.
         x0 (np.ndarray or torch.Tensor, optional): Initial guess for the solution. Defaults to zero vector.
-        max_iter (int, optional): Maximum number of iterations.
+        max_iter (int, optional): Maximum number of iterations. Defaults to 1000.
+        verbose (bool, optional): Whether to print progress information. Defaults to True.
 
     Returns:
         x (np.ndarray or torch.Tensor). Final solution vector.
@@ -43,8 +45,9 @@ def irwa_solver(
     Raises:
         TypeError: If input types are neither NumPy arrays nor PyTorch tensors, or input types are mixed.
     """
-    print("========================================")
-    print("----------------- IRWA -----------------")
+    if verbose:
+        print("========================================")
+        print("----------------- IRWA -----------------")
     
     # Type and consistency check
     is_numpy = isinstance(g, np.ndarray)
@@ -115,19 +118,20 @@ def irwa_solver(
         norm_dx = backend_ops['norm'](x_next - x)
         min_eps = backend_ops['min_value'](epsilon)
         if norm_dx <= sigma and min_eps <= sigma_prime:
-            print(f"Iteration ends at {k}.")
-            val = quadratic_objective(H, g, x)
-            val_penalty = penalized_quadratic_objective(H, g, x, A_eq, b_eq, A_ineq, b_ineq)
-            print(f"{'Objective (no penalty):':<24} {val:.6f}")
-            print(f"{'Objective (penalized):':<24} {val_penalty:.6f}")
-            print(f"||dx|| = {norm_dx:.2e}, min(epsilon) = {min_eps:.2e}")
-            print("========================================")
+            if verbose:
+                print(f"Iteration ends at {k}.")
+                val = quadratic_objective(H, g, x)
+                val_penalty = penalized_quadratic_objective(H, g, x, A_eq, b_eq, A_ineq, b_ineq)
+                print(f"{'Objective (no penalty):':<24} {val:.6f}")
+                print(f"{'Objective (penalized):':<24} {val_penalty:.6f}")
+                print(f"||dx|| = {norm_dx:.2e}, min(epsilon) = {min_eps:.2e}")
+                print("========================================")
             return x, k, n_cg_steps, time_cg
 
         x = x_next
         epsilon = epsilon_next
 
-        if k % 100 == 0:
+        if verbose and k % 100 == 0:
             print(f"Iteration {k}:")
             val = quadratic_objective(H, g, x)
             val_penalty = penalized_quadratic_objective(H, g, x, A_eq, b_eq, A_ineq, b_ineq)
@@ -135,8 +139,9 @@ def irwa_solver(
             print(f"{'Objective (penalized):':<24} {val_penalty:.6f}")
             print(f"||dx|| = {norm_dx:.2e}, min(epsilon) = {min_eps:.2e}\n")
 
-    print(f"No convergence in {k} iterations.")
-    print("========================================")
+    if verbose:
+        print(f"No convergence in {k} iterations.")
+        print("========================================")
     return x, k, n_cg_steps, time_cg
 
 

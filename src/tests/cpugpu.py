@@ -25,7 +25,7 @@ def run_experiment(n, m1, m2, num_trials=5, device='cuda'):
         'ADAL_GPU': defaultdict(list)
     }
     
-    for trial in range(num_trials):
+    for trial in range(1, num_trials+1):
         # Generate problem data with different random seeds
         data = generate_optimization_data(n=n, m1=m1, m2=m2, numpy_output=True, torch_output=True, seed=trial)
         
@@ -42,32 +42,39 @@ def run_experiment(n, m1, m2, num_trials=5, device='cuda'):
         A_ineq_torch = data['torch']['A_ineq'].to(device)
         b_ineq_torch = data['torch']['b_ineq'].to(device)
         
-        # Run CPU solvers
-        start = time.time()
-        _, _, n_cg_irwa_cpu, cg_time_irwa_cpu = irwa_solver(H_np, g_np, A_eq_np, b_eq_np, A_ineq_np, b_ineq_np)
-        metrics['IRWA_CPU']['time'].append(time.time() - start)
-        metrics['IRWA_CPU']['cg_steps'].append(n_cg_irwa_cpu)
-        metrics['IRWA_CPU']['cg_time'].append(cg_time_irwa_cpu)  # Store CG time
-        
-        start = time.time()
-        _, _, n_cg_adal_cpu, cg_time_adal_cpu = adal_solver(H_np, g_np, A_eq_np, b_eq_np, A_ineq_np, b_ineq_np)
-        metrics['ADAL_CPU']['time'].append(time.time() - start)
-        metrics['ADAL_CPU']['cg_steps'].append(n_cg_adal_cpu)
-        metrics['ADAL_CPU']['cg_time'].append(cg_time_adal_cpu)  # Store CG time
-        
-        # Run GPU solvers
-        start = time.time()
-        _, _, n_cg_irwa_gpu, cg_time_irwa_gpu = irwa_solver(H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch)
-        metrics['IRWA_GPU']['time'].append(time.time() - start)
-        metrics['IRWA_GPU']['cg_steps'].append(n_cg_irwa_gpu)
-        metrics['IRWA_GPU']['cg_time'].append(cg_time_irwa_gpu)  # Store CG time
-        
-        start = time.time()
-        _, _, n_cg_adal_gpu, cg_time_adal_gpu = adal_solver(H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch)
-        metrics['ADAL_GPU']['time'].append(time.time() - start)
-        metrics['ADAL_GPU']['cg_steps'].append(n_cg_adal_gpu)
-        metrics['ADAL_GPU']['cg_time'].append(cg_time_adal_gpu)  # Store CG time
-    
+        # List of solvers to benchmark
+        solvers = [
+            # CPU solvers
+            {'name': 'IRWA_CPU', 'args': (H_np, g_np, A_eq_np, b_eq_np, A_ineq_np, b_ineq_np), 'func': irwa_solver},
+            {'name': 'ADAL_CPU', 'args': (H_np, g_np, A_eq_np, b_eq_np, A_ineq_np, b_ineq_np), 'func': adal_solver},
+            # GPU solvers  
+            {'name': 'IRWA_GPU', 'args': (H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch), 'func': irwa_solver},
+            {'name': 'ADAL_GPU', 'args': (H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch), 'func': adal_solver}
+        ]
+
+        # Print table header
+        print(f"\n===== Iteration {trial} Metrics =====")
+        print(f"{'Solver':<15} {'Time(s)':<15} {'CG Steps':<15} {'CG Time(s)':<15}")
+
+        # Benchmark each solver
+        verbose = False
+        for solver in solvers:
+            # Time the solver execution
+            start = time.time()
+            _, _, n_cg, cg_time = solver['func'](*solver['args'], verbose=verbose)
+            total_time = time.time() - start
+            
+            # Store metrics
+            metrics[solver['name']]['time'].append(total_time)
+            metrics[solver['name']]['cg_steps'].append(n_cg) 
+            metrics[solver['name']]['cg_time'].append(cg_time)
+            
+            # Print results
+            print(f"{solver['name']:<15} {total_time:<15.4f} {n_cg:<15} {cg_time:<15.4f}")
+
+        # Add spacing after each benchmark iteration    
+        print()
+
     return metrics
 
 
@@ -145,7 +152,7 @@ if __name__ == "__main__":
     n = 1000 * scale
     m1 = 300 * scale
     m2 = 300 * scale
-    num_trials = 10
+    num_trials = 5
     
     print(f"\nRunning {num_trials} trials for problem size: {n}x{m1}x{m2}")
     

@@ -12,7 +12,7 @@ from .data_gen import generate_optimization_data
 
 def solve_with_irwa(H, g, A_eq, b_eq, A_ineq, b_ineq):
     start = time.time()
-    x, iters, _, _ = irwa.irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
+    x, iters, _, _ = irwa.irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, verbose=False)
     end = time.time()
     running_time = end - start
     return x, iters, running_time
@@ -20,7 +20,7 @@ def solve_with_irwa(H, g, A_eq, b_eq, A_ineq, b_ineq):
 
 def solve_with_adal(H, g, A_eq, b_eq, A_ineq, b_ineq):
     start = time.time()
-    x, iters, _, _ = adal.adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
+    x, iters, _, _ = adal.adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, verbose=False)
     end = time.time()
     running_time = end - start
     return x, iters, running_time

@@ -101,10 +101,6 @@ def cg(
 
 # Example
 if __name__ == "__main__":
-    def matvec(p):
-        """Compute A @ p where A = P @ P.T + 0.1*I, without forming A explicitly"""
-        return P @ (P.T @ p) + 0.1 * p
-
     """ Numpy part """
     print("========================================")
     print("-----------------Numpy------------------")
@@ -113,6 +109,9 @@ if __name__ == "__main__":
     n = 100
     P = np.random.randn(n, 5)  # Rank 5 matrix
     b = np.random.randn(n)
+    def matvec(p:np.ndarray):
+        """Compute A @ p where A = P @ P.T + 0.1*I, without forming A explicitly"""
+        return P @ (P.T @ p) + 0.1 * p
     
     # Solve using Conjugate Gradient
     x, cg_steps = cg(matvec, b, maxiter=1000)
@@ -135,17 +134,19 @@ if __name__ == "__main__":
     torch.set_default_dtype(torch.float64)
     torch.set_default_device(device)
     
-    # Construct a symmetric positive definite matrix A and vector b
-    n = 100
-    P = torch.rand(n, 5)  # rank 5 matrix
-    b = torch.rand(n) 
+    # Construct the matrix and vector with numpy data
+    P_torch = torch.from_numpy(P).clone()
+    b_torch = torch.from_numpy(b).clone()
+    def matvec_torch(p:torch.Tensor):
+        """Compute A @ p where A = P @ P.T + 0.1*I, without forming A explicitly"""
+        return P_torch @ (P_torch.T @ p) + 0.1 * p
     
     # Solve using Conjugate Gradient
-    x, cg_steps = cg(matvec, b, maxiter=1000)
+    x_torch, cg_steps_torch = cg(matvec_torch, b_torch, maxiter=1000)
 
     # Verify the solution
-    Ax = matvec(x)
-    residual_norm = torch.norm(Ax - b).item()
-    print(f"Residual norm: {residual_norm:.3e}.  CG steps: {cg_steps}")
+    Ax_torch = matvec_torch(x_torch)
+    residual_norm_torch = torch.norm(Ax_torch - b_torch).item()
+    print(f"Residual norm: {residual_norm_torch:.3e}.  CG steps: {cg_steps_torch}")
     print("========================================")
     print()

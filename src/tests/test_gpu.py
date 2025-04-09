@@ -62,10 +62,10 @@ running_time_adal = end_adal-start_adal
 
 
 # compute function value with/without penalty
-val_irwa_penalty = penalized_quadratic_objective(H, g, x_irwa, A_eq, b_eq, A_ineq, b_ineq)
+val_irwa_penalty = penalized_quadratic_objective(H, g, A_eq, b_eq, A_ineq, b_ineq, x_irwa)
 val_irwa_pri = quadratic_objective(H, g, x_irwa)
 
-val_adal_penalty = penalized_quadratic_objective(H, g, x_adal, A_eq, b_eq, A_ineq, b_ineq)
+val_adal_penalty = penalized_quadratic_objective(H, g, A_eq, b_eq, A_ineq, b_ineq, x_adal)
 val_adal_pri = quadratic_objective(H, g, x_adal)
 
 

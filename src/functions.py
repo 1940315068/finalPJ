@@ -33,11 +33,11 @@ def quadratic_objective(
 def penalized_quadratic_objective(
     H: Union[torch.Tensor, np.ndarray],
     g: Union[torch.Tensor, np.ndarray],
-    x: Union[torch.Tensor, np.ndarray],
     A_eq: Union[torch.Tensor, np.ndarray],
     b_eq: Union[torch.Tensor, np.ndarray],
     A_ineq: Union[torch.Tensor, np.ndarray],
-    b_ineq: Union[torch.Tensor, np.ndarray]
+    b_ineq: Union[torch.Tensor, np.ndarray],
+    x: Union[torch.Tensor, np.ndarray]
 ) -> float:
     """Compute objective with L1 penalties. Inputs must be all torch or all numpy."""
     # Check input type validity

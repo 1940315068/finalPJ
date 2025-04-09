@@ -108,7 +108,7 @@ def print_solver_results(solver_name, x, iters, running_time, H, g, A_eq, b_eq, 
         running_time (float): Execution time in seconds
         H, g, A_eq, b_eq, A_ineq, b_ineq: Problem parameters
     """
-    val_penalty = penalized_quadratic_objective(H, g, x, A_eq, b_eq, A_ineq, b_ineq)
+    val_penalty = penalized_quadratic_objective(H, g, A_eq, b_eq, A_ineq, b_ineq, x)
     val_primal = quadratic_objective(H, g, x)
     penalty = val_penalty - val_primal
     

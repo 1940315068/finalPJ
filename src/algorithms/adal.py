@@ -97,8 +97,9 @@ def adal_solver(
         # Step 2. Solve subproblem for x^(k+1), use conjugate gradient to solve the linear system
         rhs = -(g + A.T @ u + mu * (A.T @ (b - p_next)))
         cg_start_time = time.time()
-        maxiter = max(10, n // 10)
-        x_next, cg_steps = cg(matvec, rhs, maxiter=maxiter, x0=x, rtol=1e-1)
+        maxiter = max(30, n // 100)  # max iteration for cg
+        rtol_cg = 0.15
+        x_next, cg_steps = cg(matvec, rhs, maxiter=maxiter, x0=x, rtol=rtol_cg)
         cg_end_time = time.time()
         time_cg += (cg_end_time - cg_start_time)
         n_cg_steps += cg_steps
@@ -115,7 +116,7 @@ def adal_solver(
             if verbose:
                 print(f"Iteration ends at {k}.")
                 val = quadratic_objective(H, g, x)
-                val_penalty = penalized_quadratic_objective(H, g, x, A_eq, b_eq, A_ineq, b_ineq)
+                val_penalty = penalized_quadratic_objective(H, g, A_eq, b_eq, A_ineq, b_ineq, x)
                 print(f"{'Objective (no penalty):':<24} {val:.6f}")
                 print(f"{'Objective (penalized):':<24} {val_penalty:.6f}")
                 print(f"||dx|| = {norm_dx:.2e}, max(|residual|) = {norm_residual:.2e}")
@@ -128,7 +129,7 @@ def adal_solver(
         if verbose and k % 100 == 0:
             print(f"Iteration {k}:")
             val = quadratic_objective(H, g, x)
-            val_penalty = penalized_quadratic_objective(H, g, x, A_eq, b_eq, A_ineq, b_ineq)
+            val_penalty = penalized_quadratic_objective(H, g, A_eq, b_eq, A_ineq, b_ineq, x)
             print(f"{'Objective (no penalty):':<24} {val:.6f}")
             print(f"{'Objective (penalized):':<24} {val_penalty:.6f}")
             print(f"||dx|| = {norm_dx:.2e}, max(|residual|) = {norm_residual:.2e}\n")

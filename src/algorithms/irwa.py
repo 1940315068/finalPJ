@@ -94,8 +94,9 @@ def irwa_solver(
 
         rhs = -(g + A.T @ (w * v))
         cg_start_time = time.time()
-        maxiter = max(10, n // 10)
-        x_next, cg_steps = cg(matvec, rhs, maxiter=maxiter, x0=x, rtol=1e-1)
+        maxiter = max(30, n // 100)  # max iteration for cg
+        rtol_cg = 0.15
+        x_next, cg_steps = cg(matvec, rhs, maxiter=maxiter, x0=x, rtol=rtol_cg)
         cg_end_time = time.time()
         time_cg += (cg_end_time - cg_start_time)
         n_cg_steps += cg_steps
@@ -121,7 +122,7 @@ def irwa_solver(
             if verbose:
                 print(f"Iteration ends at {k}.")
                 val = quadratic_objective(H, g, x)
-                val_penalty = penalized_quadratic_objective(H, g, x, A_eq, b_eq, A_ineq, b_ineq)
+                val_penalty = penalized_quadratic_objective(H, g, A_eq, b_eq, A_ineq, b_ineq, x)
                 print(f"{'Objective (no penalty):':<24} {val:.6f}")
                 print(f"{'Objective (penalized):':<24} {val_penalty:.6f}")
                 print(f"||dx|| = {norm_dx:.2e}, min(epsilon) = {min_eps:.2e}")
@@ -134,7 +135,7 @@ def irwa_solver(
         if verbose and k % 100 == 0:
             print(f"Iteration {k}:")
             val = quadratic_objective(H, g, x)
-            val_penalty = penalized_quadratic_objective(H, g, x, A_eq, b_eq, A_ineq, b_ineq)
+            val_penalty = penalized_quadratic_objective(H, g, A_eq, b_eq, A_ineq, b_ineq, x)
             print(f"{'Objective (no penalty):':<24} {val:.6f}")
             print(f"{'Objective (penalized):':<24} {val_penalty:.6f}")
             print(f"||dx|| = {norm_dx:.2e}, min(epsilon) = {min_eps:.2e}\n")
@@ -207,7 +208,7 @@ def compute_w(x, epsilon, A, b, m1, m2, backend_ops):
 
 def compute_v(x, A, b, m1, m2, backend_ops):
     Ax_plus_b = A @ x + b
-    ineq_part = b[:m1]
-    eq_part = b[m1:] - backend_ops['min'](Ax_plus_b[m1:], backend_ops['tensor'](0.0))
-    v = backend_ops['cat']([ineq_part, eq_part])
+    eq_part = b[:m1]
+    ineq_part = b[m1:] - backend_ops['min'](Ax_plus_b[m1:], backend_ops['tensor'](0.0))
+    v = backend_ops['cat']([eq_part, ineq_part])
     return v

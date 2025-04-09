@@ -54,23 +54,24 @@ def run_experiment(n, m1, m2, num_trials=5, device='cuda'):
 
         # Print table header
         print(f"\n===== Iteration {trial} Metrics =====")
-        print(f"{'Solver':<15} {'Time(s)':<15} {'CG Steps':<15} {'CG Time(s)':<15}")
+        print(f"{'Solver':<15} {'Time(s)':<15} {'CG Steps':<15} {'CG Time(s)':<15} {'Val(penalty)':<15}")
 
         # Benchmark each solver
         verbose = False
         for solver in solvers:
             # Time the solver execution
             start = time.time()
-            _, _, n_cg, cg_time = solver['func'](*solver['args'], verbose=verbose)
+            x, _, n_cg, cg_time = solver['func'](*solver['args'], verbose=verbose)
             total_time = time.time() - start
             
             # Store metrics
             metrics[solver['name']]['time'].append(total_time)
             metrics[solver['name']]['cg_steps'].append(n_cg) 
             metrics[solver['name']]['cg_time'].append(cg_time)
+            val_penalty = penalized_quadratic_objective(*solver['args'], x=x)
             
             # Print results
-            print(f"{solver['name']:<15} {total_time:<15.4f} {n_cg:<15} {cg_time:<15.4f}")
+            print(f"{solver['name']:<15} {total_time:<15.4f} {n_cg:<15} {cg_time:<15.4f} {val_penalty:<15.6f}")
 
         # Add spacing after each benchmark iteration    
         print()
@@ -85,16 +86,19 @@ def analyze_metrics(metrics):
         times = metrics[solver]['time']
         cg_steps = metrics[solver]['cg_steps']
         cg_times = metrics[solver]['cg_time']  # Add this line
+        avg_time = np.mean(times)
+        avg_cg_time = np.mean(cg_times)
         
         results[solver] = {
-            'avg_time': np.mean(times),
+            'avg_time': avg_time,
             'std_time': np.std(times),
             'avg_cg_steps': np.mean(cg_steps),
             'min_cg_steps': min(cg_steps),
             'max_cg_steps': max(cg_steps),
             'std_cg_steps': np.std(cg_steps),
-            'avg_cg_time': np.mean(cg_times),
-            'std_cg_time': np.std(cg_times)
+            'avg_cg_time': avg_cg_time,
+            'std_cg_time': np.std(cg_times), 
+            'cg_time_ratio': avg_cg_time/avg_time
         }
         
     return results
@@ -164,11 +168,11 @@ if __name__ == "__main__":
     
     # Print summary
     print("\nPerformance Summary:")
-    print(f"{'Solver':<10} {'Avg Time':<10} {'Time Std':<10} {'Avg CG':<10} {'Min CG':<10} {'Max CG':<10} {'CG Std':<10}")
+    print(f"{'Solver':<10} {'Avg Time':<10} {'Time Std':<10} {'Avg CG':<10} {'Min CG':<10} {'Max CG':<10} {'CG Std':<10} {'CG Time Ratio':<15}")
     for solver in results:
         r = results[solver]
         print(f"{solver:<10} {r['avg_time']:<10.4f} {r['std_time']:<10.4f} "
-              f"{r['avg_cg_steps']:<10.1f} {r['min_cg_steps']:<10} {r['max_cg_steps']:<10} {r['std_cg_steps']:<10.1f}")
+              f"{r['avg_cg_steps']:<10.1f} {r['min_cg_steps']:<10} {r['max_cg_steps']:<10} {r['std_cg_steps']:<10.1f} {r['cg_time_ratio']:<15.1%}")
     
     # Visualize results
     plot_results(results, f"{n}x{m1}x{m2}")

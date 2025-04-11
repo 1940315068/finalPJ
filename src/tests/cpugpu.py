@@ -60,9 +60,9 @@ def run_experiment(n, m1, m2, num_trials=5, device='cuda'):
         verbose = False
         for solver in solvers:
             # Time the solver execution
-            start = time.time()
+            start = time.monotonic()
             x, _, n_cg, cg_time = solver['func'](*solver['args'], verbose=verbose)
-            total_time = time.time() - start
+            total_time = time.monotonic() - start
             
             # Store metrics
             metrics[solver['name']]['time'].append(total_time)

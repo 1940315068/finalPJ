@@ -43,15 +43,15 @@ g = np.random.rand(n)
 
 
 # start IRWA
-start_irwa = time.time()
+start_irwa = time.monotonic()
 x_irwa, k_irwa, n_cg_steps_irwa, time_cg_irwa = irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
-end_irwa = time.time()
+end_irwa = time.monotonic()
 running_time_irwa = end_irwa-start_irwa
 
 # start ADAL
-start_adal = time.time()
+start_adal = time.monotonic()
 x_adal, k_adal, n_cg_steps_adal, time_cg_adal = adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
-end_adal = time.time()
+end_adal = time.monotonic()
 running_time_adal = end_adal-start_adal
 
 

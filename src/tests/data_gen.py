@@ -4,7 +4,8 @@ import torch
 
 def generate_optimization_data(n=1000, m1=300, m2=300, 
                              m1_infeasible=0, m2_infeasible=0,
-                             numpy_output=True, torch_output=True, seed=None):
+                             numpy_output=True, torch_output=True, seed=None, 
+                             torch_float_dtype = torch.float64):
     """
     Generate optimization problem data in NumPy and/or PyTorch formats.
     
@@ -23,6 +24,7 @@ def generate_optimization_data(n=1000, m1=300, m2=300,
     numpy_output (bool): Whether to return NumPy arrays (default=True)
     torch_output (bool): Whether to return PyTorch tensors (default=True)
     seed (int, optional): Random seed for reproducibility (default=None)
+    torch_float_dtype (dtype): Dtype of torch tensors. (default=float32)
     
     Returns:
     --------
@@ -38,7 +40,7 @@ def generate_optimization_data(n=1000, m1=300, m2=300,
         - 'A_ineq': Inequality constraint matrix (m2 x n)
         - 'b_ineq': Inequality constraint vector (m2,)
     """
-    torch.set_default_dtype(torch.float64)
+    torch.set_default_dtype(torch_float_dtype)
     
     if seed is not None:
         np.random.seed(seed)
@@ -90,12 +92,12 @@ def generate_optimization_data(n=1000, m1=300, m2=300,
     
     if torch_output:
         output['torch'] = {
-            'H': torch.from_numpy(H).clone(),
-            'g': torch.from_numpy(g).clone(),
-            'A_eq': torch.from_numpy(A_eq).clone(),
-            'b_eq': torch.from_numpy(b_eq).clone(),
-            'A_ineq': torch.from_numpy(A_ineq).clone(),
-            'b_ineq': torch.from_numpy(b_ineq).clone()
+            'H': torch.from_numpy(H).clone().to(torch_float_dtype),
+            'g': torch.from_numpy(g).clone().to(torch_float_dtype),
+            'A_eq': torch.from_numpy(A_eq).clone().to(torch_float_dtype),
+            'b_eq': torch.from_numpy(b_eq).clone().to(torch_float_dtype),
+            'A_ineq': torch.from_numpy(A_ineq).clone().to(torch_float_dtype),
+            'b_ineq': torch.from_numpy(b_ineq).clone().to(torch_float_dtype)
         }
     
     return output

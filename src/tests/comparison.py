@@ -14,18 +14,18 @@ from .data_gen import generate_optimization_data
 
 def solve_with_irwa(H, g, A_eq, b_eq, A_ineq, b_ineq):
     """Solve using IRWA algorithm."""
-    start = time.time()
+    start = time.monotonic()
     x, iters, _, _ = irwa.irwa_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, verbose=False)
-    running_time = time.time() - start
+    running_time = time.monotonic() - start
     print_solver_results("IRWA", x, iters, running_time, H, g, A_eq, b_eq, A_ineq, b_ineq)
     return x, iters, running_time
 
 
 def solve_with_adal(H, g, A_eq, b_eq, A_ineq, b_ineq):
     """Solve using ADAL algorithm."""
-    start = time.time()
+    start = time.monotonic()
     x, iters, _, _ = adal.adal_solver(H, g, A_eq, b_eq, A_ineq, b_ineq, verbose=False)
-    running_time = time.time() - start
+    running_time = time.monotonic() - start
     print_solver_results("ADAL", x, iters, running_time, H, g, A_eq, b_eq, A_ineq, b_ineq)
     return x, iters, running_time
 
@@ -36,11 +36,11 @@ def solve_with_osqp(H, g, A_eq, b_eq, A_ineq, b_ineq):
     A = csc_matrix(np.vstack([A_eq, A_ineq]))
     l = np.hstack([-b_eq, -np.inf * np.ones(len(b_ineq))])
     u = np.hstack([-b_eq, -b_ineq])
-    start = time.time()
-    prob_osqp = osqp.OSQP()
+    start = time.monotonic()
+    prob_osqp = osqp.OSQP(algebra='mkl')
     prob_osqp.setup(P=P, q=g, A=A, l=l, u=u, verbose=False)
     result_osqp = prob_osqp.solve()
-    running_time = time.time() - start
+    running_time = time.monotonic() - start
     x = result_osqp.x
     iters = result_osqp.info.iter
     print_solver_results("OSQP", x, iters, running_time, H, g, A_eq, b_eq, A_ineq, b_ineq)
@@ -53,10 +53,10 @@ def solve_with_cvxpy(H, g, A_eq, b_eq, A_ineq, b_ineq):
     x_cvxpy = cp.Variable(n)
     obj_cvxpy = cp.Minimize(0.5 * cp.quad_form(x_cvxpy, H) + g.T @ x_cvxpy)
     constraints_cvxpy = [A_eq @ x_cvxpy == -b_eq, A_ineq @ x_cvxpy <= -b_ineq]
-    start = time.time()
+    start = time.monotonic()
     prob_cvxpy = cp.Problem(obj_cvxpy, constraints_cvxpy)
-    prob_cvxpy.solve() 
-    running_time = time.time() - start
+    prob_cvxpy.solve(solver=cp.SCS) 
+    running_time = time.monotonic() - start
     x = x_cvxpy.value
     iters = prob_cvxpy.solver_stats.num_iters
     print_solver_results("CVXPY", x, iters, running_time, H, g, A_eq, b_eq, A_ineq, b_ineq)
@@ -72,9 +72,9 @@ def solve_with_cvxopt(H, g, A_eq, b_eq, A_ineq, b_ineq):
     h = matrix(-b_ineq)
     A = matrix(A_eq)
     b = matrix(-b_eq)
-    start_time = time.time()
+    start_time = time.monotonic()
     sol = solvers.qp(P, q, G, h, A, b)
-    running_time = time.time() - start_time
+    running_time = time.monotonic() - start_time
     x = np.array(sol['x']).flatten()
     iters = sol['iterations'] if 'iterations' in sol else 0
     print_solver_results("CVXOPT", x, iters, running_time, H, g, A_eq, b_eq, A_ineq, b_ineq)
@@ -82,16 +82,16 @@ def solve_with_cvxopt(H, g, A_eq, b_eq, A_ineq, b_ineq):
 
 
 def solve_with_scipy(H, g, A_eq, b_eq, A_ineq, b_ineq):
-    """Solve using SciPy's SLSQP solver."""
+    """Solve using SciPy solver."""
     n = H.shape[0]
     x0 = np.zeros(n)
     constraints_scipy = [
         {'type': 'eq', 'fun': lambda x: A_eq @ x + b_eq},
         {'type': 'ineq', 'fun': lambda x: -A_ineq @ x - b_ineq}
     ]
-    start = time.time()
+    start = time.monotonic()
     result_scipy = minimize(lambda x: quadratic_objective(H,g,x), x0, constraints=constraints_scipy)
-    running_time = time.time() - start
+    running_time = time.monotonic() - start
     x = result_scipy.x
     iters = result_scipy.nit
     print_solver_results("SciPy", x, iters, running_time, H, g, A_eq, b_eq, A_ineq, b_ineq)
@@ -133,8 +133,8 @@ def compare_solvers(H, g, A_eq, b_eq, A_ineq, b_ineq):
         solve_with_adal,
         solve_with_osqp,
         solve_with_cvxpy,
-        solve_with_cvxopt,
-        solve_with_scipy
+        solve_with_cvxopt
+        # solve_with_scipy
     ]
     
     for solver in solvers:

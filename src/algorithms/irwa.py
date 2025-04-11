@@ -93,11 +93,11 @@ def irwa_solver(
             return H @ p + (A.T @ (w * (A @ p)))
 
         rhs = -(g + A.T @ (w * v))
-        cg_start_time = time.time()
+        cg_start_time = time.monotonic()
         maxiter = max(30, n // 100)  # max iteration for cg
         rtol_cg = 0.15
         x_next, cg_steps = cg(matvec, rhs, maxiter=maxiter, x0=x, rtol=rtol_cg)
-        cg_end_time = time.time()
+        cg_end_time = time.monotonic()
         time_cg += (cg_end_time - cg_start_time)
         n_cg_steps += cg_steps
 

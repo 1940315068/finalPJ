@@ -82,7 +82,7 @@ def adal_solver(
     time_cg = 0
 
     def matvec(p):
-        return H @ p + mu * (A.T @ (A @ p))
+        return H @ p + (A.T @ (mu * (A @ p)))
 
     for k in range(1, max_iter + 1):
         # Step 1. Solve subproblem for p^(k+1)
@@ -96,11 +96,11 @@ def adal_solver(
         
         # Step 2. Solve subproblem for x^(k+1), use conjugate gradient to solve the linear system
         rhs = -(g + A.T @ u + mu * (A.T @ (b - p_next)))
-        cg_start_time = time.time()
+        cg_start_time = time.monotonic()
         maxiter = max(30, n // 100)  # max iteration for cg
         rtol_cg = 0.15
         x_next, cg_steps = cg(matvec, rhs, maxiter=maxiter, x0=x, rtol=rtol_cg)
-        cg_end_time = time.time()
+        cg_end_time = time.monotonic()
         time_cg += (cg_end_time - cg_start_time)
         n_cg_steps += cg_steps
 

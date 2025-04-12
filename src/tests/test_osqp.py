@@ -7,7 +7,7 @@ import time
 from scipy.sparse import csc_matrix
 from ..algorithms import irwa, adal
 from ..functions import penalized_quadratic_objective, quadratic_objective
-from .data_gen import generate_optimization_data
+from .data_gen import generate_random_data
 
 
 def solve_with_osqp(H, g, A_eq, b_eq, A_ineq, b_ineq, algebra='builtin'):
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
     # Generate problem data
     torch_float_dtype = torch.float64
-    data = generate_optimization_data(n=n, m1=m1, m2=m2, numpy_output=True, torch_output=True, torch_float_dtype=torch_float_dtype)
+    data = generate_random_data(n=n, m1=m1, m2=m2, numpy_output=True, torch_output=True, torch_float_dtype=torch_float_dtype)
     
     # Extract problem matrices
     H, g = data['numpy']['H'], data['numpy']['g']

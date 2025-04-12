@@ -3,6 +3,7 @@ from ..functions import *
 from ..algorithms.irwa import irwa_solver
 from ..algorithms.adal import adal_solver
 import time
+from .data_gen import *
 
 
 scale = 1
@@ -10,36 +11,10 @@ n = 1000*scale  # number of variables
 m1 = 300*scale  # number of equality constraints
 m2 = 300*scale  # number of inequality constraints
 
-# equality constraints 
-A_eq = np.random.rand(m1, n)
-b_eq = np.zeros(m1)
-
-# inequality constraints
-A_ineq = np.random.rand(m2, n)
-b_ineq = np.random.rand(m2)
-
-# Add infeasible constraints of equality: Ax+b=0, Ax-b=0
-m1_infeasible = 0
-m1 += 2*m1_infeasible
-A_eq_infeasible = np.random.rand(m1_infeasible, n)
-A_eq = np.vstack([A_eq, A_eq_infeasible, A_eq_infeasible])
-b_eq_infeasible = np.random.rand(m1_infeasible)
-b_eq = np.hstack([b_eq, b_eq_infeasible, -b_eq_infeasible])
-
-# Add infeasible constraints of inequality: Ax+1<=0, -Ax<=0
-m2_infeasible = 0
-m2 += 2*m2_infeasible
-A_ineq_infeasible = np.random.rand(m2_infeasible, n)
-A_ineq = np.vstack([A_ineq, A_ineq_infeasible, -A_ineq_infeasible])
-b_ones_infeasible = np.ones(m2_infeasible)
-b_zeros_infeasible = np.zeros(m2_infeasible)
-b_ineq = np.hstack([b_ineq, b_ones_infeasible, b_zeros_infeasible])
-
-
-# define the phi(x) with H and g
-P = np.random.rand(n, 5)
-H = np.dot(P, P.T) + 0.1 * np.eye(n)
-g = np.random.rand(n)
+data = generate_portfolio_data(n_assets=n, n_factors=n//100, target_return=0.1, torch_output=False, include_shorting=True)
+H, g = data['numpy']['H'], data['numpy']['g']
+A_eq, b_eq = data['numpy']['A_eq'], data['numpy']['b_eq']
+A_ineq, b_ineq = data['numpy']['A_ineq'], data['numpy']['b_ineq']
 
 
 # start IRWA
@@ -65,8 +40,8 @@ penalty_adal = val_adal_penalty - val_adal_pri
 
 # show the comparison
 print("------------------------------------------------------------")
-print(f"Number of variables: {n}")
-print(f"Number of constraints: {m1} + {m2} = {m1+m2}")
+print(f"Number of variables: {g.shape[0]}")
+print(f"Number of constraints: {b_eq.shape[0]} + {b_ineq.shape[0]} = {b_eq.shape[0] + b_ineq.shape[0]}")
 print("------------------------------------------------------------")
 print(f"IRWA function value with penalty: {val_irwa_penalty:.6f}")
 print(f"ADAL function value with penalty: {val_adal_penalty:.6f}")

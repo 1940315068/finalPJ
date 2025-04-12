@@ -9,7 +9,7 @@ from scipy.sparse import csc_matrix
 import time
 from ..algorithms import irwa, adal
 from ..functions import penalized_quadratic_objective, quadratic_objective
-from .data_gen import generate_optimization_data
+from .data_gen import *
 
 
 def solve_with_irwa(H, g, A_eq, b_eq, A_ineq, b_ineq):
@@ -37,7 +37,7 @@ def solve_with_osqp(H, g, A_eq, b_eq, A_ineq, b_ineq):
     l = np.hstack([-b_eq, -np.inf * np.ones(len(b_ineq))])
     u = np.hstack([-b_eq, -b_ineq])
     start = time.monotonic()
-    prob_osqp = osqp.OSQP(algebra='mkl')
+    prob_osqp = osqp.OSQP()
     prob_osqp.setup(P=P, q=g, A=A, l=l, u=u, verbose=False)
     result_osqp = prob_osqp.solve()
     running_time = time.monotonic() - start
@@ -139,6 +139,9 @@ def compare_solvers(H, g, A_eq, b_eq, A_ineq, b_ineq):
     
     for solver in solvers:
         solver(H, g, A_eq, b_eq, A_ineq, b_ineq)
+    
+    print("-"*100)
+    print()
 
 
 if __name__ == "__main__":
@@ -149,7 +152,8 @@ if __name__ == "__main__":
     m2 = 300 * scale  # number of inequality constraints
 
     # Generate problem data
-    data = generate_optimization_data(n=n, m1=m1, m2=m2, numpy_output=True, torch_output=False)
+    data = generate_random_data(n=n, m1=m1, m2=m2, numpy_output=True, torch_output=False)
+    # data = generate_portfolio_data(n_assets=n, n_factors=n//100, target_return=0.1, torch_output=False, include_shorting=True)
     
     # Extract problem matrices
     H, g = data['numpy']['H'], data['numpy']['g']

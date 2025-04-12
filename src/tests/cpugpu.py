@@ -8,7 +8,7 @@ from collections import defaultdict
 from ..algorithms.irwa import irwa_solver
 from ..algorithms.adal import adal_solver
 from ..functions import penalized_quadratic_objective, quadratic_objective
-from .data_gen import generate_optimization_data
+from .data_gen import *
 
 
 def run_experiment(n, m1, m2, num_trials=5, device='cuda'):
@@ -27,7 +27,7 @@ def run_experiment(n, m1, m2, num_trials=5, device='cuda'):
     
     for trial in range(1, num_trials+1):
         # Generate problem data with different random seeds
-        data = generate_optimization_data(n=n, m1=m1, m2=m2, numpy_output=True, torch_output=True, seed=trial)
+        data = generate_random_data(n=n, m1=m1, m2=m2, numpy_output=True, torch_output=True, seed=trial)
         
         # CPU (NumPy) data
         H_np, g_np = data['numpy']['H'], data['numpy']['g']

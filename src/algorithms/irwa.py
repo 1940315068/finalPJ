@@ -69,10 +69,10 @@ def irwa_solver(
     m = m1 + m2           # total number of constraints
 
     # Hyper parameters:
-    epsilon0 = 20000 * backend_ops['ones'](m)
-    eta = 0.8
+    epsilon0 = 2000 * backend_ops['ones'](m) * (max(1, n//500))
+    eta = 0.8 if n<10000 else 0.775 if n<20000 else 0.76 if n<30000 else 0.75
     gamma = 0.15
-    M = 100
+    M = 10 * (max(1, n//500))
     sigma = 1e-6
     sigma_prime = 1e-4
 
@@ -94,9 +94,9 @@ def irwa_solver(
 
         rhs = -(g + A.T @ (w * v))
         cg_start_time = time.monotonic()
-        maxiter = max(30, n // 100)  # max iteration for cg
+        maxiter = max(50, n // 250)  # max iteration for cg
         rtol_cg = 0.15
-        x_next, cg_steps = cg(matvec, rhs, maxiter=maxiter, x0=x, rtol=rtol_cg)
+        x_next, cg_steps = cg(matvec, rhs, maxiter=maxiter, x0=x, rtol=rtol_cg, atol=sigma)
         cg_end_time = time.monotonic()
         time_cg += (cg_end_time - cg_start_time)
         n_cg_steps += cg_steps

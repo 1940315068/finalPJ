@@ -97,7 +97,7 @@ def adal_solver(
         # Step 2. Solve subproblem for x^(k+1), use conjugate gradient to solve the linear system
         rhs = -(g + A.T @ u + mu * (A.T @ (b - p_next)))
         cg_start_time = time.monotonic()
-        maxiter = max(30, n // 100)  # max iteration for cg
+        maxiter = max(50, n // 250)  # max iteration for cg
         rtol_cg = 0.15
         x_next, cg_steps = cg(matvec, rhs, maxiter=maxiter, x0=x, rtol=rtol_cg)
         cg_end_time = time.monotonic()

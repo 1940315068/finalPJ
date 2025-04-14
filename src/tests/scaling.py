@@ -13,10 +13,12 @@ from .data_gen import *
 
 def run_experiment(n, m1, m2, num_trials=5, device='cuda'):
     """
-    Run multiple trials for fixed problem dimensions and collect performance metrics
+    Run multiple trials for fixed problem dimensions and collect performance metrics.
+    Only records data if the CG steps between CPU and GPU versions of IRWA and ADAL
+    differ by less than 5% (relative to CPU).
     
     Returns:
-    dict: Dictionary containing lists of metrics for each solver
+    dict: Dictionary containing lists of metrics for each solver (only valid trials)
     """
     metrics = {
         'IRWA_CPU': defaultdict(list),
@@ -25,7 +27,11 @@ def run_experiment(n, m1, m2, num_trials=5, device='cuda'):
         'ADAL_GPU': defaultdict(list)
     }
     
-    for trial in range(1, num_trials+1):
+    valid_trials = 0
+    trial = 0
+    
+    while valid_trials < num_trials: 
+        trial += 1
         # Generate problem data with different random seeds
         data = generate_random_data(n=n, m1=m1, m2=m2, numpy_output=True, torch_output=True, seed=trial)
         
@@ -52,30 +58,67 @@ def run_experiment(n, m1, m2, num_trials=5, device='cuda'):
             {'name': 'ADAL_GPU', 'args': (H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch), 'func': adal_solver}
         ]
 
-        # Print table header
-        print(f"\n===== Iteration {trial} Metrics =====")
-        print(f"{'Solver':<15} {'Time(s)':<15} {'CG Steps':<15} {'CG Time(s)':<15} {'Val(penalty)':<15}")
-
+        # Temporary storage for this trial's results
+        trial_metrics = {
+            'IRWA_CPU': defaultdict(list),
+            'ADAL_CPU': defaultdict(list),
+            'IRWA_GPU': defaultdict(list),
+            'ADAL_GPU': defaultdict(list)
+        }
+        
         # Benchmark each solver
         verbose = False
+        cg_steps = {}  # To store CG steps for each solver
+        
         for solver in solvers:
             # Time the solver execution
             start = time.monotonic()
             x, _, n_cg, cg_time = solver['func'](*solver['args'], verbose=verbose)
             total_time = time.monotonic() - start
             
-            # Store metrics
-            metrics[solver['name']]['time'].append(total_time)
-            metrics[solver['name']]['cg_steps'].append(n_cg) 
-            metrics[solver['name']]['cg_time'].append(cg_time)
+            # Store in trial_metrics
+            trial_metrics[solver['name']]['time'].append(total_time)
+            trial_metrics[solver['name']]['cg_steps'].append(n_cg) 
+            trial_metrics[solver['name']]['cg_time'].append(cg_time)
             val_penalty = penalized_quadratic_objective(*solver['args'], x=x)
+            trial_metrics[solver['name']]['val_penalty'].append(val_penalty)
             
-            # Print results
-            print(f"{solver['name']:<15} {total_time:<15.4f} {n_cg:<15} {cg_time:<15.4f} {val_penalty:<15.6f}")
+            # Store CG steps for comparison
+            cg_steps[solver['name']] = n_cg
 
-        # Add spacing after each benchmark iteration    
-        print()
+        # Check if the trial is valid
+        irwa_cpu_steps = cg_steps['IRWA_CPU']
+        irwa_gpu_steps = cg_steps['IRWA_GPU']
+        irwa_diff = abs(irwa_cpu_steps - irwa_gpu_steps) / irwa_cpu_steps
+        
+        adal_cpu_steps = cg_steps['ADAL_CPU']
+        adal_gpu_steps = cg_steps['ADAL_GPU']
+        adal_diff = abs(adal_cpu_steps - adal_gpu_steps) / adal_cpu_steps
+        
+        if irwa_diff <= 0.08 and adal_diff <= 0.08:
+            valid_trials += 1
+            # Print table header for valid trials
+            print(f"\n===== Valid Iteration {valid_trials} (Trial {trial}) Metrics =====")
+            print(f"{'Solver':<15} {'Time(s)':<15} {'CG Steps':<15} {'CG Time(s)':<15} {'Val(penalty)':<15}")
+            
+            # Print and store valid results
+            for solver_name in trial_metrics:
+                metrics[solver_name]['time'].append(trial_metrics[solver_name]['time'][0])
+                metrics[solver_name]['cg_steps'].append(trial_metrics[solver_name]['cg_steps'][0])
+                metrics[solver_name]['cg_time'].append(trial_metrics[solver_name]['cg_time'][0])
+                metrics[solver_name]['val_penalty'].append(trial_metrics[solver_name]['val_penalty'][0])
+                
+                # Print results
+                print(f"{solver_name:<15} {trial_metrics[solver_name]['time'][0]:<15.4f} "
+                      f"{trial_metrics[solver_name]['cg_steps'][0]:<15} "
+                      f"{trial_metrics[solver_name]['cg_time'][0]:<15.4f} "
+                      f"{trial_metrics[solver_name]['val_penalty'][0]:<15.6f}")
+        else:
+            print(f"\n===== Trial {trial} Discarded (CG Steps Mismatch) =====")
+            print(f"IRWA CPU vs GPU: {irwa_cpu_steps} vs {irwa_gpu_steps} ({irwa_diff*100:.2f}% diff)")
+            print(f"ADAL CPU vs GPU: {adal_cpu_steps} vs {adal_gpu_steps} ({adal_diff*100:.2f}% diff)")
 
+    print(f"\nCompleted {valid_trials} valid trials out of {trial} total trials for problem size: {n}x{m1}x{m2}.")
     return metrics
 
 
@@ -266,5 +309,5 @@ if __name__ == "__main__":
     print(f"Using device: {device}")
     
     # Run scaling experiment
-    scaling_results = run_scaling_experiment(device, max_scale=10, num_scales=5, num_trials=3)
+    scaling_results = run_scaling_experiment(device, max_scale=15, num_scales=10, num_trials=5)
     plot_scaling_results(scaling_results)

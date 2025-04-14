@@ -24,7 +24,7 @@ def solve_with_osqp(H, g, A_eq, b_eq, A_ineq, b_ineq, algebra='builtin'):
     x = result_osqp.x
     iters = result_osqp.info.iter
     print_solver_results(f"OSQP-{algebra}", x, iters, running_time, H, g, A_eq, b_eq, A_ineq, b_ineq)
-    return x, iters, running_time
+    return x, iters, running_time, result_osqp.info.run_time, result_osqp.info.setup_time, result_osqp.info.solve_time
 
 
 def solve_with_irwa(H, g, A_eq, b_eq, A_ineq, b_ineq):
@@ -65,7 +65,7 @@ def print_solver_results(solver_name, x, iters, running_time, H, g, A_eq, b_eq, 
 
 if __name__ == "__main__":
     # Problem parameters
-    scale = 10
+    scale = 5
     n = 1000 * scale  # number of variables
     m1 = 300 * scale  # number of equality constraints
     m2 = 300 * scale  # number of inequality constraints
@@ -97,7 +97,13 @@ if __name__ == "__main__":
     print("-"*80)
     solve_with_irwa(H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch)
     solve_with_adal(H_torch, g_torch, A_eq_torch, b_eq_torch, A_ineq_torch, b_ineq_torch)
-    solve_with_osqp(H, g, A_eq, b_eq, A_ineq, b_ineq, algebra="cuda")
-    solve_with_osqp(H, g, A_eq, b_eq, A_ineq, b_ineq, algebra="mkl")
+    _, _, t1, run_time_1, setup_time_1, solve_time_1 = solve_with_osqp(H, g, A_eq, b_eq, A_ineq, b_ineq, algebra="cuda")
+    _, _, t2, run_time_2, setup_time_2, solve_time_2 = solve_with_osqp(H, g, A_eq, b_eq, A_ineq, b_ineq, algebra="mkl")
+    print("-"*80)
+    print()
+    print("-"*80)
+    print(f"{'Total time':<15} {'Run time':>14} {'Set-up time':>14} {'Solve time':>14}")
+    print(f"{t1:<15.4f} {run_time_1:>14.4f} {setup_time_1:>14.4f} {solve_time_1:>14.4f}")
+    print(f"{t2:<15.4f} {run_time_2:>14.4f} {setup_time_2:>14.4f} {solve_time_2:>14.4f}")
     print("-"*80)
     print()

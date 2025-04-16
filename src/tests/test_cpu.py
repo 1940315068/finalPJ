@@ -11,7 +11,11 @@ n = 1000*scale  # number of variables
 m1 = 300*scale  # number of equality constraints
 m2 = 300*scale  # number of inequality constraints
 
-data = generate_portfolio_data(n_assets=n, n_factors=n//100, target_return=0.1, torch_output=False, include_shorting=True)
+# data = generate_portfolio_data(n_assets=n, n_factors=n//100, target_return=0.1, torch_output=False, include_shorting=True)
+# data = generate_bounded_least_squares_data(n=n, m=m1, torch_output=False)
+# data = generate_soft_margin_svm_qp_data(n=n, m=m1, C=1.0, torch_output=False)
+data = generate_random_data(n=n,m1=m1,m2=m2, torch_output=False)
+
 H, g = data['numpy']['H'], data['numpy']['g']
 A_eq, b_eq = data['numpy']['A_eq'], data['numpy']['b_eq']
 A_ineq, b_ineq = data['numpy']['A_ineq'], data['numpy']['b_ineq']

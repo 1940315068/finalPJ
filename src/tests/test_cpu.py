@@ -13,7 +13,7 @@ m2 = 300*scale  # number of inequality constraints
 
 # data = generate_portfolio_data(n_assets=n, n_factors=n//100, target_return=0.1, torch_output=False, include_shorting=True)
 # data = generate_bounded_least_squares_data(n=n, m=m1, torch_output=False)
-# data = generate_soft_margin_svm_qp_data(n=n, m=m1, C=1.0, torch_output=False)
+# data = generate_svm_data(n=n, m=50, torch_output=False)
 data = generate_random_data(n=n,m1=m1,m2=m2, torch_output=False)
 
 H, g = data['numpy']['H'], data['numpy']['g']

@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from typing import Dict, Optional, Union
 
 
 def generate_output(H, g, A_eq, b_eq, A_ineq, b_ineq, numpy_output=True, torch_output=True, torch_float_dtype = torch.float64):
@@ -68,12 +69,12 @@ def generate_random_data(n=1000, m1=300, m2=300,
         torch.manual_seed(seed)
     
     # Generate equality constraints
-    A_eq = np.random.rand(m1, n)
+    A_eq = np.random.randn(m1, n)
     b_eq = np.zeros(m1)
     
     # Generate inequality constraints
-    A_ineq = np.random.rand(m2, n)
-    b_ineq = np.random.rand(m2)
+    A_ineq = np.random.randn(m2, n)
+    b_ineq = np.random.randn(m2)
     
     # Generate quadratic objective: (1/2)x^T H x + g^T x
     P = np.random.rand(n, 5)  # Low-rank component
@@ -288,25 +289,28 @@ def generate_bounded_least_squares_data(n=1000, m=500,
     return output
 
 
-def generate_soft_margin_svm_qp_data(n=1000, m=50, C=1.0, 
-                                     numpy_output=True, torch_output=True, seed=None,
-                                     torch_float_dtype=torch.float64):
+def generate_svm_data(n: int = 1000, m: int = 2, C: Optional[int] = 1.0,
+                      numpy_output: bool = True, torch_output: bool = True, 
+                      seed: Optional[int] = None, 
+                      torch_float_dtype: torch.dtype = torch.float64) -> Dict[str, Dict[str, Union[np.ndarray, torch.Tensor]]]:
     """
-    Generate soft-margin SVM problem in QP standard form:
+    Generate SVM problem data in NumPy and/or PyTorch formats.
     
+    The problem is of the form:
     min (1/2)x^T H x + g^T x
-        s.t. A_ineq x + b_ineq <= 0
-
-    Variables:
-    ----------
-    z = [w (n), b (1), ξ (m)] ∈ R^{n+1+m}
-
-    Constraints:
-    ------------
-    For each i:
-        y_i * (w^T x_i + b) >= 1 - ξ_i   -->   -y_i * [x_i^T, b, e_i^T] z <= -1
-        ξ_i >= 0                        -->   [0, ..., 0, -1_i, 0, ..., 0] z <= 0
-
+    s.t. A_ineq x + b_ineq <= 0
+    
+    Where x = [w, ξ, b] (weights, slack variables, bias)
+    
+    Parameters:
+    -----------
+    n (int): Number of data points (default=1000)
+    m (int): Dimension of feature space (default=2)
+    numpy_output (bool): Whether to return NumPy arrays (default=True)
+    torch_output (bool): Whether to return PyTorch tensors (default=True)
+    seed (int, optional): Random seed for reproducibility (default=None)
+    torch_float_dtype (dtype): Dtype of torch tensors. (default=float64)
+    
     Returns:
     --------
     dict
@@ -314,54 +318,63 @@ def generate_soft_margin_svm_qp_data(n=1000, m=50, C=1.0,
         - 'numpy': Contains NumPy arrays (if numpy_output=True)
         - 'torch': Contains PyTorch tensors (if torch_output=True)
         Each contains the following elements:
-        - 'H': Quadratic term matrix (n x n)
-        - 'g': Linear term vector (n,)
-        - 'A_eq': Equality constraint matrix (m1 x n)  = [-mu; 1]
-        - 'b_eq': Equality constraint vector (m1,)  = - [target_return; 1]
-        - 'A_ineq': Inequality constraint matrix (m2 x n)  = -I
-        - 'b_ineq': Inequality constraint vector (m2,)  = 0
+        - 'H': Quadratic term matrix ((m + n + 1) x (m + n + 1))
+        - 'g': Linear term vector (m + n + 1,)
+        - 'A_eq': Equality constraint matrix (0 x (m + n + 1)) - empty
+        - 'b_eq': Equality constraint vector (0,) - empty
+        - 'A_ineq': Inequality constraint matrix (2n x (m + n + 1))
+        - 'b_ineq': Inequality constraint vector (2n,)
     """
     torch.set_default_dtype(torch_float_dtype)
     if seed is not None:
         np.random.seed(seed)
         torch.manual_seed(seed)
-
-    d = n + 1 + m  # total variable length
-
-    # Generate random linearly-separable-like data
-    X = np.random.randn(m, n)
-    true_w = np.random.randn(n)
-    true_b = np.random.randn()
-    y = np.sign(X @ true_w + true_b)
-    y[y == 0] = 1  # Avoid zeros
-
-    # Construct H
-    H = np.zeros((d, d))
-    H[:n, :n] = np.eye(n)  # Only quadratic term on w
-
-    # Construct g
-    g = np.zeros(d)
-    g[n+1:] = C  # Linear term only on ξ
-
-    # Construct A_ineq and b_ineq
-    A_ineq = np.zeros((2 * m, d))
-    b_ineq = np.zeros(2 * m)
-
-    for i in range(m):
-        xi = X[i]
-        yi = y[i]
-
-        # Classification constraint: -yi * [xi^T, 1, e_i] <= -1
-        A_ineq[i, :n] = -yi * xi
-        A_ineq[i, n]   = -yi
-        A_ineq[i, n+1+i] = -1
+    
+    half_n = n // 2
+    var = 1.0 / n  # Variance = 1/n
+    
+    # Generate features
+    X = np.zeros((n, m))
+    y = np.zeros(n)
+    
+    # First half: +1 class with mean +1
+    X[:half_n, :] = np.random.normal(loc=1.0, scale=np.sqrt(var), size=(half_n, m))
+    y[:half_n] = 1
+    
+    # Second half: -1 class with mean -1
+    X[half_n:, :] = np.random.normal(loc=-1.0, scale=np.sqrt(var), size=(half_n, m))
+    y[half_n:] = -1
+    
+    # SVM problem parameters
+    C = 1.0  # Regularization parameter
+    total_vars = m + n + 1  # w (m), ξ (n), b (1)
+    
+    # Construct H matrix (quadratic term)
+    H = np.zeros((total_vars, total_vars))
+    H[:m, :m] = np.eye(m)  # (1/2)w^T w term
+    
+    # Construct g vector (linear term)
+    g = np.zeros(total_vars)
+    g[m:m+n] = C  # C*sum(ξ) term
+    
+    # Construct inequality constraints
+    A_ineq = np.zeros((2*n, total_vars))
+    b_ineq = np.zeros(2*n)
+    
+    # First n constraints: y_i(w^T x_i + b) ≥ 1 - ξ_i
+    for i in range(n):
+        A_ineq[i, :m] = -y[i] * X[i]  # w part
+        A_ineq[i, m+i] = -1           # ξ_i part
+        A_ineq[i, -1] = -y[i]         # b part
         b_ineq[i] = 1
-
-        # Slack variable ≥ 0 --> -ξ_i <= 0
-        A_ineq[m + i, n+1+i] = -1
-        b_ineq[m + i] = 0
-
-    A_eq = np.zeros((0, d))
+    
+    # Next n constraints: ξ_i ≥ 0
+    for i in range(n, 2*n):
+        A_ineq[i, m + (i-n)] = -1     # -ξ_{i-n} ≤ 0
+        b_ineq[i] = 0
+    
+    # No equality constraints for standard SVM
+    A_eq = np.zeros((0, total_vars))
     b_eq = np.zeros(0)
 
     # Prepare outputs

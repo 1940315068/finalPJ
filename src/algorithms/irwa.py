@@ -83,6 +83,9 @@ def irwa_solver(
     b = backend_ops['hstack']([b_eq, b_ineq])
     n_cg_steps = 0
     time_cg = 0
+    rho = 1.0
+    rho_max = 1.0
+    rho_scale = 1.1
 
     for k in range(1, max_iter+1):
         # Step 1. Solve the reweighted subproblem for x^(k+1), use conjugate gradient to solve the linear system 
@@ -90,9 +93,9 @@ def irwa_solver(
         v = compute_v(x, A, b, m1, m2, backend_ops)
 
         def matvec(p):
-            return H @ p + (A.T @ (w * (A @ p)))
+            return H @ p + rho * (A.T @ (w * (A @ p)))
 
-        rhs = -(g + A.T @ (w * v))
+        rhs = -(g + rho * (A.T @ (w * v)))
         cg_start_time = time.monotonic()
         maxiter = max(50, n // 250)  # max iteration for cg
         rtol_cg = 0.15
@@ -114,6 +117,8 @@ def irwa_solver(
             cond2 = (backend_ops['arange'](m) >= m1) & (Ax_plus_b <= 0)
             indices = backend_ops['where'](cond1 | cond2)[0]
             epsilon_next[indices] = epsilon[indices]
+
+        rho = min(rho_max, rho*rho_scale)
 
         # Step 3. Check the stopping criterion
         norm_dx = backend_ops['norm'](x_next - x)

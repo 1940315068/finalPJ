@@ -80,9 +80,12 @@ def adal_solver(
     b = backend['hstack']([b_eq, b_ineq])
     n_cg_steps = 0
     time_cg = 0
+    rho = 1.0
+    rho_max = 1.0
+    rho_scale = 1.1
 
     def matvec(p):
-        return H @ p + (A.T @ (mu * (A @ p)))
+        return H @ p + rho * (A.T @ (mu * (A @ p)))
 
     for k in range(1, max_iter + 1):
         # Step 1. Solve subproblem for p^(k+1)
@@ -95,7 +98,7 @@ def adal_solver(
         p_next = backend['cat']([p_eq, p_ineq])
         
         # Step 2. Solve subproblem for x^(k+1), use conjugate gradient to solve the linear system
-        rhs = -(g + A.T @ u + mu * (A.T @ (b - p_next)))
+        rhs = -(g + rho * (A.T @ u) + rho * mu * (A.T @ (b - p_next)))
         cg_start_time = time.monotonic()
         maxiter = max(50, n // 250)  # max iteration for cg
         rtol_cg = 0.15
@@ -107,6 +110,8 @@ def adal_solver(
         # Step 3. Update multipliers u^(k+1)
         residual = A @ x_next + b - p_next
         u_next = u + mu * residual
+        
+        rho = min(rho_max, rho*rho_scale)
         
         # Step 4. Check the stopping criterion
         norm_dx = backend['norm'](x_next - x)

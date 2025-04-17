@@ -132,7 +132,7 @@ def compare_solvers(H, g, A_eq, b_eq, A_ineq, b_ineq):
         solve_with_irwa,
         solve_with_adal,
         solve_with_osqp,
-        solve_with_cvxpy,
+        # solve_with_cvxpy,
         solve_with_cvxopt
         # solve_with_scipy
     ]
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     data = generate_random_data(n=n, m1=m1, m2=m2, torch_output=False)
     # data = generate_portfolio_data(n_assets=n, n_factors=n//100, target_return=0.1, torch_output=False, include_shorting=True)
     # data = generate_bounded_least_squares_data(n=n, m=m1, torch_output=False)
-    # data = generate_soft_margin_svm_qp_data(n=n, m=m1, C=1.0, torch_output=False)
+    # data = generate_svm_data(n=n, m=10, torch_output=False)
     
     # Extract problem matrices
     H, g = data['numpy']['H'], data['numpy']['g']
